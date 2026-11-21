@@ -1,20 +1,14 @@
-// Fruti - ROM game launcher (library list + details, grid and list views).
+// Fruti - ROM game launcher: consoles in the sidebar, game posters in the middle, click to play.
 (() => {
   "use strict";
-  const VERSION = "12";
-  // Without its files (e.g. served from a blob: URL), load games and covers from GitHub Pages.
+  const VERSION = "13";
+  // Without its files (e.g. served from a blob: URL), open the player from GitHub Pages.
   const SITE = "https://jogresh7-ship-it.github.io/fruti-emulr/";
   const BASE = /^(https?|file):$/.test(location.protocol) ? "" : SITE;
   const abs = (p) => (!p || /^[a-z]+:/i.test(p) ? p : BASE + p);
 
-  // Games are found in the repo's rom/<Console>/<Game Name>/ folders (see library.js)
-  let games = [];
-  let byId = {};
-  let loadState = "loading"; // loading | ok | error
-  let loadError = "";
   const CONSOLES = window.FRUTI_CONSOLES || [];
   const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -23,408 +17,128 @@
     get(k, d) { try { const v = localStorage.getItem("fruti:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem("fruti:" + k, JSON.stringify(v)); } catch {} },
   };
-  let history = store.get("history", []);   // [{ id, at }] newest first
-  let times = store.get("times", {});       // { id: ms }
-  let favs = new Set(store.get("favs", []));
-  const ui = Object.assign({
-    mode: "details", group: "genre", sort: "name", platform: "all", favOnly: false,
-    accent: "#29b6f6", card: 180, bgArt: true, titles: true, collapsed: {}, sel: null, page: "library",
-  }, store.get("desktop", {}));
-  const saveUi = () => store.set("desktop", ui);
+  let times = store.get("times", {});
+  let console_ = store.get("console", null);   // selected console id
 
-  // ---------- Helpers ----------
+  let games = [], state = "loading", error = "";
   const fmt = (ms) => { const m = Math.floor((ms || 0) / 60000); return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`; };
-  const ago = (t) => {
-    if (!t) return "Never";
-    const m = Math.round((Date.now() - t) / 60000);
-    if (m < 1) return "Just now";
-    if (m < 60) return m + " min ago";
-    if (m < 1440) return Math.round(m / 60) + " h ago";
-    const d = Math.round(m / 1440);
-    return d === 1 ? "Yesterday" : d + " days ago";
-  };
   const initials = (t) => t.replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean).map((w) => /^\d+$/.test(w) ? w : w[0]).join("").slice(0, 3).toUpperCase();
-  const bg = (g) => g.image ? `url("${abs(g.image)}")` : `linear-gradient(135deg, ${g.color?.[0] || "#334"}, ${g.color?.[1] || "#112"})`;
-  const lastAt = (id) => history.find((x) => x.id === id)?.at || 0;
+  const byConsole = (id) => games.filter((g) => g.console === id);
+  const consoleOf = (id) => CONSOLES.find((c) => c.id === id);
 
-  const ICON = {
-    library: `<svg viewBox="0 0 24 24"><path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m16 5 3.8-1 3 15.4-3.8 1z"/></svg>`,
-    fav: `<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>`,
-    stats: `<svg viewBox="0 0 24 24"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>`,
-    settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`,
-    pad: `<svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15.5A3 3 0 0 0 7.2 18l1.3-2h7l1.3 2a3 3 0 0 0 5.2-2.5l-.7-6.9A4 4 0 0 0 17.3 5z"/></svg>`,
-    play: `<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/></svg>`,
-    chev: `<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>`,
-    check: `<svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>`,
-  };
-
-  // ---------- Platforms ----------
-  const PLAT = {};
-  CONSOLES.forEach((c) => { PLAT[c.id] = { name: c.name, tag: c.tag, engine: c.id === "psp" ? "EmulatorJS (PPSSPP)" : "EmulatorJS", icon: ICON.pad }; });
-  const platOf = (g) => g.console || "n64";
-  const mb = (n) => n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : Math.max(0.1, n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB";
-  const badge = (g) => { const p = PLAT[platOf(g)]; return `<span class="badge">${p.icon}${esc(p.tag)}</span>`; };
-
-  // ---------- Page buttons (top right) ----------
-  const PAGES = [
-    ["library", "Library", ICON.library],
-    ["stats", "Statistics", ICON.stats],
-    ["settings", "Settings", ICON.settings],
-  ];
-  PAGES.forEach(([id, label, icon]) => {
-    const b = h("button", "tb-btn pg-btn", icon);
-    b.dataset.pg = id; b.title = label; b.setAttribute("aria-label", label);
-    b.onclick = () => { showPage(id); if (id === "library") renderLibrary(); };
-    $("#pages").appendChild(b);
-  });
-
-  function showPage(id) {
-    ui.page = id; saveUi();
-    $$(".page").forEach((p) => p.classList.toggle("active", p.dataset.page === id));
-    $$(".pg-btn").forEach((b) => b.classList.toggle("active", b.dataset.pg === id));
-    document.body.dataset.page = id;
-    if (id === "stats") renderStats();
+  // ---------- Sidebar: consoles ----------
+  function consoleIcon(c, cls) {
+    return c.icon
+      ? `<span class="${cls} pic"><img src="${esc(abs(c.icon))}" alt=""></span>`
+      : `<span class="${cls} tag">${esc(c.tag)}</span>`;
   }
-
-  // ---------- Filtering, sorting, grouping ----------
-  function visible() {
-    const q = $("#search").value.trim().toLowerCase();
-    let list = games.filter((g) =>
-      (!q || g.title.toLowerCase().includes(q) || g.tags.some((t) => t.toLowerCase().includes(q))) &&
-      (ui.platform === "all" || platOf(g) === ui.platform) &&
-      (!ui.favOnly || favs.has(g.id)));
-    const by = {
-      name: (a, b) => a.title.localeCompare(b.title),
-      last: (a, b) => lastAt(b.id) - lastAt(a.id) || a.title.localeCompare(b.title),
-      time: (a, b) => (times[b.id] || 0) - (times[a.id] || 0) || a.title.localeCompare(b.title),
-      platform: (a, b) => PLAT[platOf(a)].name.localeCompare(PLAT[platOf(b)].name) || a.title.localeCompare(b.title),
-    }[ui.sort] || ((a, b) => a.title.localeCompare(b.title));
-    return list.sort(by);
-  }
-  function grouped(list) {
-    if (ui.group === "none") return [[null, list]];
-    const m = new Map();
-    const add = (k, g) => { if (!m.has(k)) m.set(k, []); m.get(k).push(g); };
-    list.forEach((g) => ui.group === "genre" ? (g.tags.length ? g.tags : [PLAT[platOf(g)].name]).forEach((t) => add(t, g)) : add(PLAT[platOf(g)].name, g));
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }
-  const filterActive = () => !!$("#search").value.trim() || ui.platform !== "all" || ui.favOnly;
-
-  // ---------- Library render ----------
-  let order = []; // unique ids in display order, for keyboard navigation
-  function renderLibrary() {
-    const list = visible();
-    // Grid and list views show each game once; the details list is grouped
-    order = ui.mode === "details" ? [...new Set(grouped(list).flatMap(([, gs]) => gs.map((g) => g.id)))] : list.map((g) => g.id);
-    if (!order.includes(ui.sel)) ui.sel = order[0] || null;
-
-    $("#content").dataset.mode = ui.mode;
-    $$(".tb-btn.mode").forEach((b) => b.classList.toggle("active", b.dataset.mode === ui.mode));
-    $("#tb-fav").classList.toggle("active", ui.favOnly);
-    $("#tb-plat").classList.toggle("active", ui.platform !== "all");
-    $("#filter-chip").hidden = !filterActive();
-    $("#count").textContent = `${list.length} game${list.length === 1 ? "" : "s"}`;
-
-    if (ui.mode === "details") renderList(list);
-    else if (ui.mode === "grid") renderGrid(list);
-    else renderTable(list);
-    renderDetails();
-  }
-
-  const emptyMsg = () => h("div", "empty",
-    loadState === "loading" ? "Loading games from GitHub…"
-    : loadState === "error" && !games.length ? `Couldn't load games from GitHub. ${esc(loadError)} <button class='link' data-reload>Try again</button>`
-    : games.length ? "No games match. <button class='link' data-clear>Clear filters</button>"
-    : "No games yet. Upload one on GitHub to <b>rom/&lt;console&gt;/&lt;game name&gt;/</b>, for example rom/PS/Crash Bandicoot/. <button class='link' data-reload>Check again</button>");
-
-  function groupHead(name, count, wrap) {
-    const key = ui.group + ":" + name;
-    const head = h("button", "grp-head" + (ui.collapsed[key] ? " closed" : ""), `${ICON.chev}<span>${esc(name)}</span><b>${count}</b>`);
-    head.onclick = () => { ui.collapsed[key] = !ui.collapsed[key]; saveUi(); renderLibrary(); };
-    wrap.appendChild(head);
-    return !ui.collapsed[key];
-  }
-
-  function renderList(list) {
-    const box = $("#list"); box.innerHTML = "";
-    if (!list.length) { box.appendChild(emptyMsg()); return; }
-    grouped(list).forEach(([name, gs]) => {
-      if (name != null && !groupHead(name, gs.length, box)) return;
-      gs.forEach((g) => {
-        const it = h("button", "li" + (g.id === ui.sel ? " sel" : ""), `<i class="thumb"></i><span>${esc(g.title)}</span>${favs.has(g.id) ? `<em class="star">${ICON.fav}</em>` : ""}`);
-        $(".thumb", it).style.backgroundImage = bg(g);
-        it.dataset.id = g.id;
-        bindPick(it, g);
-        box.appendChild(it);
-      });
+  function renderConsoles() {
+    const nav = $("#consoles"); nav.innerHTML = `<div class="nav-title">Consoles</div>`;
+    // Consoles with games first, then the rest
+    const list = [...CONSOLES].sort((a, b) => (byConsole(b.id).length > 0) - (byConsole(a.id).length > 0));
+    list.forEach((c) => {
+      const n = byConsole(c.id).length;
+      const b = h("button", "con" + (c.id === console_ && !query() ? " on" : "") + (n ? "" : " empty"),
+        `${consoleIcon(c, "con-icon")}<span class="con-txt"><b>${esc(c.name)}</b><small>${state === "loading" ? "…" : n + (n === 1 ? " game" : " games")}</small></span>`);
+      b.onclick = () => { console_ = c.id; store.set("console", c.id); $("#search").value = ""; render(); $("#shelf").scrollTop = 0; };
+      nav.appendChild(b);
     });
   }
 
-  function renderGrid(list) {
-    const box = $("#grid"); box.innerHTML = "";
-    box.style.setProperty("--card", ui.card + "px");
-    box.classList.toggle("no-titles", !ui.titles);
-    if (!list.length) { box.appendChild(emptyMsg()); return; }
-    const wrap = h("div", "cards");
-    list.forEach((g) => {
-        const c = h("button", "gcard" + (g.id === ui.sel ? " sel" : ""),
-          `<div class="gc-top">${badge(g)}${favs.has(g.id) ? `<em class="star">${ICON.fav}</em>` : ""}</div>
-           <div class="gc-art">${g.image ? "" : `<b>${esc(initials(g.title))}</b>`}</div>
-           <div class="gc-title">${esc(g.title)}</div>`);
-        $(".gc-art", c).style.backgroundImage = bg(g);
-        c.dataset.id = g.id;
-        bindPick(c, g);
-        wrap.appendChild(c);
-    });
-    box.appendChild(wrap);
-  }
-
-  function renderTable(list) {
-    const box = $("#table"); box.innerHTML = "";
-    const cols = [["name", "Name"], ["platform", "Platform"], [null, "Genres"], ["time", "Time played"], ["last", "Last played"]];
-    const head = h("div", "tr th");
-    cols.forEach(([k, label]) => {
-      const c = h(k ? "button" : "span", "td" + (k && ui.sort === k ? " on" : ""), esc(label));
-      if (k) c.onclick = () => { ui.sort = k; saveUi(); renderLibrary(); };
-      head.appendChild(c);
-    });
-    box.appendChild(head);
-    if (!list.length) { box.appendChild(emptyMsg()); return; }
-    list.forEach((g) => {
-      const r = h("button", "tr" + (g.id === ui.sel ? " sel" : ""),
-        `<span class="td"><i class="thumb"></i>${esc(g.title)}${favs.has(g.id) ? `<em class="star">${ICON.fav}</em>` : ""}</span>
-         <span class="td">${badge(g)}</span>
-         <span class="td dim">${esc(g.tags.join(", "))}</span>
-         <span class="td dim">${times[g.id] ? fmt(times[g.id]) : "—"}</span>
-         <span class="td dim">${ago(lastAt(g.id))}</span>`);
-      $(".thumb", r).style.backgroundImage = bg(g);
-      r.dataset.id = g.id;
-      bindPick(r, g);
-      box.appendChild(r);
-    });
-  }
-
-  function bindPick(el, g) {
-    el.onclick = () => select(g.id);
-    el.ondblclick = () => play(g);
-  }
-  function select(id, scroll) {
-    if (!byId[id]) return;
-    ui.sel = id; saveUi();
-    $$("[data-id]").forEach((e) => e.classList.toggle("sel", e.dataset.id === id));
-    renderDetails();
-    if (scroll) $(`.${ui.mode === "details" ? "li" : ui.mode === "grid" ? "gcard" : "tr"}[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest" });
-  }
-
-  // ---------- Details ----------
-  function renderDetails() {
-    const box = $("#details");
-    const g = byId[ui.sel];
-    box.classList.toggle("no-bg", !ui.bgArt);
-    if (!g) { box.innerHTML = `<div class="empty big">${loadState === "loading" ? "Loading…" : games.length ? "Select a game" : "Your library is empty"}</div>`; return; }
-    const blocked = g.unsupported ? `${esc(g.consoleFolder)} games can't be played yet.` : g.problem ? esc(g.problem) : "";
-    const p = PLAT[platOf(g)];
-    const t = times[g.id] || 0, last = lastAt(g.id);
-    const fav = favs.has(g.id);
-    box.innerHTML = `
-      <div class="d-bg"></div>
-      <div class="d-inner">
-        <div class="d-head">
-          <div class="d-icon"></div>
-          <h1 class="d-title">${esc(g.title)}</h1>
-        </div>
-        <div class="d-actions">
-          <button class="btn-play" id="d-play"${blocked ? " disabled" : ""}>${ICON.play}<span>Play</span></button>
-          <div class="d-stat"><small>Time played</small><b>${t ? fmt(t) : "Not played"}</b></div>
-          <div class="d-stat"><small>Last played</small><b>${ago(last)}</b></div>
-          <button class="d-fav${fav ? " on" : ""}" id="d-fav" title="Favorite (F)">${ICON.fav}<span>${fav ? "Favorite" : "Add to favorites"}</span></button>
-        </div>
-        <div class="d-cols">
-          <div class="d-main">
-            <div class="d-shot">${g.image ? `<img src="${esc(abs(g.image))}" alt="${esc(g.title)} screenshot" loading="lazy">` : `<b>${esc(initials(g.title))}</b>`}</div>
-            <h3>Description</h3>
-            <p>${esc(g.desc || "No description yet.")}</p>
-            <h3>How to play</h3>
-            <p>${blocked || "Opens in a new tab, downloads the game and runs it through EmulatorJS. Keyboard or a gamepad both work. Press F11 for fullscreen."
-              + (g.console === "psp" ? " PSP games only play on the website (GitHub Pages), need a computer with a recent browser, and take a while to load the first time." : "")}</p>
-          </div>
-          <aside class="d-info">
-            <dl>
-              <dt>Recent activity</dt><dd>${last ? "Played " + ago(last).toLowerCase() : "No activity yet"}</dd>
-              <dt>Platform</dt><dd>${badge(g)}</dd>
-              <dt>Folder</dt><dd>rom/${esc(g.folder)}</dd>
-              <dt>Size</dt><dd>${mb(g.size)}${g.files.length > 1 ? ` in ${g.files.length} parts` : ""}</dd>
-              <dt>Engine</dt><dd>${esc(p.engine)}</dd>
-              ${g.tags.length ? `<dt>Genres</dt><dd class="chips">${g.tags.map((x) => `<button class="chip" data-tag="${esc(x)}">${esc(x)}</button>`).join("")}</dd>` : ""}
-              <dt>Completion</dt><dd>${t >= 3600000 ? "Playing a lot" : t ? "Played" : "Not played"}</dd>
-            </dl>
-          </aside>
-        </div>
-      </div>`;
-    $(".d-bg", box).style.backgroundImage = bg(g);
-    $(".d-icon", box).style.backgroundImage = bg(g);
-    $("#d-play").onclick = () => play(g);
+  // ---------- Middle: game posters ----------
+  const query = () => $("#search").value.trim().toLowerCase();
+  function poster(g) {
+    const c = consoleOf(g.console) || { tag: g.console };
+    const blocked = g.problem || g.unsupported;
+    const p = h("button", "poster" + (blocked ? " blocked" : ""));
+    p.title = blocked ? g.problem || "Can't be played" : "Play " + g.title;
+    const art = h("div", "art");
+    if (g.image) art.style.backgroundImage = `url("${g.image}")`;
+    else {
+      art.classList.add("plain");
+      if (g.color) art.style.background = `linear-gradient(160deg, ${g.color[0]}, ${g.color[1]})`;
+      art.appendChild(h("div", "art-mark", esc(initials(g.title))));
+    }
+    art.appendChild(h("span", "badge", esc(c.tag)));
+    art.appendChild(h("span", "play", blocked
+      ? `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>`
+      : `<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/></svg>`));
+    if (g.problem) art.appendChild(h("span", "warn", "Missing parts"));
+    p.appendChild(art);
+    p.appendChild(h("div", "p-title", esc(g.title)));
+    if (times[g.id] >= 60000) p.appendChild(h("div", "p-sub", `Played ${fmt(times[g.id])}`));
+    p.onclick = () => play(g);
+    // Check split games for missing parts in the background
     if (!blocked && g.files.length > 1 && g.partsChecked === undefined) {
       g.partsChecked = null;
-      FrutiLibrary.checkParts(g).then((m) => { g.partsChecked = m; if (m) { g.problem = m; if (ui.sel === g.id) renderDetails(); } });
+      FrutiLibrary.checkParts(g).then((m) => { g.partsChecked = m; if (m) { g.problem = m; renderShelf(); } });
     }
-    $("#d-fav").onclick = () => toggleFav(g.id);
-    $$(".chip", box).forEach((c) => c.onclick = () => { $("#search").value = c.dataset.tag; renderLibrary(); });
-    box.scrollTop = 0;
+    return p;
   }
 
-  function toggleFav(id) {
-    favs.has(id) ? favs.delete(id) : favs.add(id);
-    store.set("favs", [...favs]);
-    renderLibrary();
-  }
-
-  // ---------- Play (opens in a new tab) ----------
-  function play(g) {
-    if (g.unsupported || g.problem) return;
-    const src = abs(`emu.html?v=${VERSION}&game=${encodeURIComponent(g.id)}`);
-    history = [{ id: g.id, at: Date.now() }, ...history.filter((x) => x.id !== g.id)].slice(0, 40);
-    store.set("history", history);
-    window.open(src, "_blank");
-    renderLibrary();
-  }
-
-  // ---------- Toolbar ----------
-  $("#search").oninput = renderLibrary;
-  $$(".tb-btn.mode").forEach((b) => b.onclick = () => { ui.mode = b.dataset.mode; saveUi(); showPage("library"); renderLibrary(); });
-  $("#tb-fav").onclick = () => { ui.favOnly = !ui.favOnly; saveUi(); renderLibrary(); };
-  $("#tb-random").onclick = () => {
-    const list = visible(); if (!list.length) return;
-    showPage("library");
-    const g = list[Math.floor(Math.random() * list.length)];
-    (g.tags.length ? g.tags : [PLAT[platOf(g)].name]).forEach((t) => delete ui.collapsed["genre:" + t]);
-    delete ui.collapsed["platform:" + PLAT[platOf(g)].name];
-    ui.sel = g.id; renderLibrary(); select(g.id, true);
-  };
-  $("#filter-chip").onclick = clearFilters;
-  function clearFilters() { $("#search").value = ""; ui.platform = "all"; ui.favOnly = false; saveUi(); renderLibrary(); }
-  document.addEventListener("click", (e) => {
-    if (e.target.closest("[data-clear]")) { showPage("library"); clearFilters(); }
-    if (e.target.closest("[data-reload]")) loadGames(true);
-  });
-
-  // Small dropdown menus
-  const menu = $("#menu");
-  function openMenu(btn, items, current, pick) {
-    if (!menu.hidden && menu.dataset.for === btn.id) { menu.hidden = true; return; }
-    menu.innerHTML = ""; menu.dataset.for = btn.id;
-    items.forEach(([val, label]) => {
-      const it = h("button", "menu-it" + (val === current ? " on" : ""), `${val === current ? ICON.check : "<i></i>"}<span>${esc(label)}</span>`);
-      it.onclick = () => { menu.hidden = true; pick(val); saveUi(); showPage("library"); renderLibrary(); };
-      menu.appendChild(it);
-    });
-    const r = btn.getBoundingClientRect();
-    menu.hidden = false;
-    menu.style.top = r.bottom + 6 + "px";
-    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + "px";
-  }
-  document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !menu.contains(e.target) && !e.target.closest(".tb-btn")) menu.hidden = true; });
-  $("#tb-group").onclick = (e) => openMenu(e.currentTarget, [["genre", "Group by genre"], ["platform", "Group by platform"], ["none", "Don't group"]], ui.group, (v) => ui.group = v);
-  $("#tb-sort").onclick = (e) => openMenu(e.currentTarget, [["name", "Name"], ["last", "Last played"], ["time", "Time played"], ["platform", "Platform"]], ui.sort, (v) => ui.sort = v);
-  $("#tb-plat").onclick = (e) => {
-    const used = [...new Set(games.map(platOf))];
-    openMenu(e.currentTarget, [["all", "All platforms"], ...used.map((id) => [id, PLAT[id].name])], ui.platform, (v) => ui.platform = v);
-  };
-
-  // ---------- Keyboard ----------
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { menu.hidden = true; if (document.activeElement === $("#search")) $("#search").blur(); return; }
-    if (e.target.matches("input, textarea")) {
-      if (e.key === "Enter" && byId[ui.sel]) play(byId[ui.sel]);
+  function renderShelf() {
+    const box = $("#shelf"); box.innerHTML = "";
+    const q = query();
+    const c = consoleOf(console_);
+    if (state === "loading") { box.appendChild(h("div", "note", "Loading games from GitHub…")); return; }
+    if (state === "error" && !games.length) {
+      box.appendChild(h("div", "note", `Couldn't load games from GitHub. ${esc(error)} <button class="link" id="retry">Try again</button>`));
+      $("#retry").onclick = () => load(true); return;
+    }
+    const list = q ? games.filter((g) => g.title.toLowerCase().includes(q)) : byConsole(console_);
+    const head = h("div", "shelf-head");
+    if (q) head.innerHTML = `<h1>Search</h1><span>${list.length} result${list.length === 1 ? "" : "s"} for “${esc(q)}”</span>`;
+    else if (c) head.innerHTML = `${consoleIcon(c, "head-icon")}<h1>${esc(c.name)}</h1><span>${list.length} game${list.length === 1 ? "" : "s"}</span>`;
+    box.appendChild(head);
+    if (!list.length) {
+      box.appendChild(h("div", "note", q ? "No games found."
+        : `No ${esc(c ? c.name : "")} games yet. Upload one on GitHub to <b>rom/${esc(c ? c.folder : "")}/&lt;game name&gt;/</b>, then press <b>↻</b> at the top.`));
       return;
     }
-    if (ui.page !== "library") return;
-    if (e.key === "/") { e.preventDefault(); $("#search").focus(); return; }
-    const g = byId[ui.sel];
-    if (e.key === "Enter" && g) { play(g); e.preventDefault(); return; }
-    if ((e.key === "f" || e.key === "F") && g) { toggleFav(g.id); return; }
-    let step = 0;
-    const cols = ui.mode === "grid" ? Math.max(1, getComputedStyle($("#grid .cards") || $("#grid")).gridTemplateColumns.split(" ").length) : 1;
-    if (e.key === "ArrowDown") step = cols;
-    else if (e.key === "ArrowUp") step = -cols;
-    else if (e.key === "ArrowRight" && ui.mode === "grid") step = 1;
-    else if (e.key === "ArrowLeft" && ui.mode === "grid") step = -1;
-    if (!step || !order.length) return;
-    e.preventDefault();
-    const i = Math.max(0, order.indexOf(ui.sel));
-    select(order[Math.min(order.length - 1, Math.max(0, i + step))], true);
-  });
-
-  // ---------- Statistics ----------
-  function renderStats() {
-    const total = Object.values(times).reduce((a, b) => a + b, 0);
-    const played = games.filter((g) => times[g.id] || lastAt(g.id));
-    const top = [...games].filter((g) => times[g.id]).sort((a, b) => times[b.id] - times[a.id]).slice(0, 8);
-    const max = top.length ? times[top[0].id] : 1;
-    const per = {};
-    games.forEach((g) => { const n = PLAT[platOf(g)].name; per[n] = (per[n] || 0) + 1; });
-    $("#stats").innerHTML = `
-      <h1 class="pg-title">Statistics</h1>
-      <div class="kpis">
-        <div class="kpi"><small>Games</small><b>${games.length}</b></div>
-        <div class="kpi"><small>Played</small><b>${played.length}</b></div>
-        <div class="kpi"><small>Favorites</small><b>${favs.size}</b></div>
-        <div class="kpi"><small>Total play time</small><b>${fmt(total)}</b></div>
-      </div>
-      <div class="set-card"><h3>Most played</h3>${top.length ? top.map((g) => `
-        <div class="bar-row"><span>${esc(g.title)}</span><div class="bar"><i style="width:${Math.max(3, times[g.id] / max * 100)}%"></i></div><b>${fmt(times[g.id])}</b></div>`).join("")
-        : `<p class="pg-sub">Play something and it shows up here.</p>`}</div>
-      <div class="set-card"><h3>Games per platform</h3>${Object.entries(per).sort((a, b) => b[1] - a[1]).map(([n, c]) => `
-        <div class="bar-row"><span>${esc(n)}</span><div class="bar"><i style="width:${c / Math.max(1, games.length) * 100}%"></i></div><b>${c}</b></div>`).join("")}</div>`;
+    const grid = h("div", "posters");
+    list.forEach((g) => grid.appendChild(poster(g)));
+    box.appendChild(grid);
   }
 
-  // ---------- Settings ----------
-  const ACCENTS = ["#29b6f6", "#5b8cff", "#a66bff", "#ff5c8a", "#ff8a3d", "#f5c542", "#3ccf6e", "#2ee6c5", "#e8ecf2"];
-  function applyAccent() {
-    document.documentElement.style.setProperty("--accent", ui.accent);
-    $$(".swatch").forEach((s) => s.classList.toggle("on", s.dataset.c === ui.accent));
+  function render() { renderConsoles(); renderShelf(); }
+
+  // ---------- Play: switch this tab to the player ----------
+  let toastTimer;
+  function toast(msg) {
+    const t = $("#toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
   }
-  ACCENTS.forEach((c) => {
-    const s = h("button", "swatch"); s.style.background = c; s.dataset.c = c; s.title = c;
-    s.onclick = () => { ui.accent = c; saveUi(); applyAccent(); };
-    $("#swatches").appendChild(s);
-  });
-  $("#set-size").value = ui.card;
-  $("#set-size").oninput = (e) => { ui.card = +e.target.value; saveUi(); renderLibrary(); };
-  $("#set-bg").checked = ui.bgArt;
-  $("#set-bg").onchange = (e) => { ui.bgArt = e.target.checked; saveUi(); renderDetails(); };
-  $("#set-titles").checked = ui.titles;
-  $("#set-titles").onchange = (e) => { ui.titles = e.target.checked; saveUi(); renderLibrary(); };
-  $("#set-reload").onclick = () => { showPage("library"); loadGames(true); };
-  $("#set-clear").onclick = () => {
-    if (!confirm("Clear play history and play time?")) return;
-    history = []; times = {}; store.set("history", history); store.set("times", times); renderLibrary();
-  };
-
-  // ---------- Live updates from game tabs ----------
-  const reload = () => {
-    times = store.get("times", {}); history = store.get("history", history);
-    renderLibrary(); if (ui.page === "stats") renderStats();
-  };
-  addEventListener("storage", (e) => { if (e.key === "fruti:times" || e.key === "fruti:history") reload(); });
-  addEventListener("focus", reload);
-
-  const clock = () => { $("#clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+  function play(g) {
+    if (g.problem || g.unsupported) { toast(g.problem || "This game can't be played."); return; }
+    const history = [{ id: g.id, at: Date.now() }, ...store.get("history", []).filter((x) => x.id !== g.id)].slice(0, 40);
+    store.set("history", history);
+    location.href = abs(`emu.html?v=${VERSION}&game=${encodeURIComponent(g.id)}`);
+  }
 
   // ---------- Load games from GitHub ----------
-  function loadGames(force) {
-    loadState = "loading"; renderLibrary();
+  function load(force) {
+    state = "loading"; render();
     FrutiLibrary.load(force).then((list) => {
-      games = list; byId = Object.fromEntries(games.map((g) => [g.id, g]));
-      loadState = "ok";
-    }).catch((e) => { loadState = "error"; loadError = e.message; })
-      .then(() => { renderLibrary(); if (ui.page === "stats") renderStats(); });
+      games = list; state = "ok";
+      // Pick a console: the last one used, else the first with games
+      if (!consoleOf(console_) || (!byConsole(console_).length && games.length)) {
+        const first = CONSOLES.find((c) => byConsole(c.id).length);
+        console_ = (first || CONSOLES[0] || {}).id;
+      }
+    }).catch((e) => { state = "error"; error = e.message; })
+      .then(render);
   }
 
-  // ---------- Init ----------
-  applyAccent();
-  showPage(["library", "stats", "settings"].includes(ui.page) ? ui.page : "library");
-  renderLibrary();
-  loadGames(false);
+  $("#search").oninput = render;
+  $("#reload").onclick = () => load(true);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "/" && document.activeElement !== $("#search")) { e.preventDefault(); $("#search").focus(); }
+    if (e.key === "Escape") { $("#search").value = ""; $("#search").blur(); render(); }
+  });
+  // Coming back from a game (back button / bfcache): refresh play times
+  addEventListener("pageshow", () => { times = store.get("times", {}); if (state === "ok") renderShelf(); });
+
+  const clock = () => { $("#clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
   clock(); setInterval(clock, 10000);
+  load(false);
 })();
