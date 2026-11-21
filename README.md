@@ -21,10 +21,19 @@ rom/<Console>/<Game Name>/<game file>
 | `NES` | NES |
 | `Genesis` | Sega Genesis / Mega Drive |
 
-For example `rom/DS/New Super Mario Bros/New Super Mario Bros.zip`. On GitHub: open the console folder, then **Add file → Upload files**, and drag in a folder named after the game.
+Every game needs its own folder, named after the game. Put the game file, or all of its parts, inside:
 
-- **Title:** the folder name.
-- **Big games:** the GitHub website takes files up to 25 MB (git and GitHub Desktop: 100 MB). Split the game and upload all the parts to the game's folder, named `My Game.zip.001`, `My Game.zip.002`, ... The launcher downloads the parts and joins them back together.
+```
+rom/PS/
+  My Game/
+    My Game.part001.zip
+    My Game.part002.zip
+```
+
+On GitHub: open the console folder, then **Add file → Upload files**, and drag in the game's folder.
+
+- **Title:** the folder name. Files put straight into a console folder, without a game folder, are ignored.
+- **Parts:** the GitHub website takes files up to 25 MB (git and GitHub Desktop: 100 MB), so split big games and upload every part to the game's folder. The launcher downloads them in order and joins them. Names like `My Game.part001.zip`, `My Game part 1.zip`, `My Game (Part 1).zip` and `My Game.zip.001` all work, both for one file cut into pieces and for parts that are each their own zip.
 - **Cover:** put a `.jpg` or `.png` in the game's folder.
 - **PlayStation `.cue` + `.bin`:** put them in one `.zip`.
 - **Details (optional):** genres, a description or colors go in `games.js`, by folder.

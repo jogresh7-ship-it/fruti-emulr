@@ -2,11 +2,13 @@
 //
 //   rom/<Console>/<Game Name>/<game file or parts>
 //
-//   <Console>  a folder name from CONSOLE_FOLDERS below, e.g. PS, DS, GBA
-//   parts      a game split into pieces (My Game.zip.001, .002, ...) is joined back together
-//   cover      any .jpg / .png / .webp in the game's folder is used as its cover
+//   <Console>    a folder name from CONSOLE_FOLDERS below, e.g. PS, DS, GBA
+//   <Game Name>  every game needs its own folder; files loose in rom/<Console>/ are ignored
+//   parts        My Game.part001.zip, My Game.part002.zip, ... (or My Game.zip.001, .002, ...)
+//                are downloaded in order and joined. Works both for one file cut into pieces
+//                and for parts that are each their own zip.
+//   cover        any .jpg / .png / .webp in the game's folder is used as its cover
 //
-// A file directly inside rom/<Console>/ also counts as one game.
 // games.js can add details (genres, description, colors) to a game by its folder.
 (function () {
   "use strict";
@@ -68,24 +70,26 @@
   }
 
   var natural = function (a, b) { return a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }); };
-  // "My Game.zip.001" -> "My Game.zip", "My Game.part2.nds" -> "My Game.nds"
+  // The name with its part number removed:
+  //   "My Game.part001.zip", "My Game part 2.zip", "My Game (Part 3).zip" -> "My Game.zip"
+  //   "My Game.zip.001", "My Game.zip.part1" -> "My Game.zip"
   function joinedName(name) {
-    return name.replace(/\.(\d{1,3}|part\d+)$/i, "").replace(/\.part\d+(\.[a-z0-9]+)$/i, "$1");
+    return name.replace(/\.\d{1,3}$/, "").replace(/\.part\d+$/i, "")
+      .replace(/[\s._-]*[([]?part[\s._-]*\d+[)\]]?(?=\.[a-z0-9]+$)/i, "");
   }
 
   function build(files) {
     var byGame = {};
     files.sort(natural).forEach(function (f) {
       var parts = f.path.split("/");                       // rom / Console / Game / file
-      if (parts.length < 3 || SKIP.test(f.path)) return;
+      if (parts.length < 4 || SKIP.test(f.path)) return;   // must be inside a game folder
       var con = CONSOLE_FOLDERS[parts[1].toLowerCase()];
       if (!con) return;
-      var single = parts.length === 3;                     // rom/Console/file.ext
       var folder = parts[1] + "/" + parts[2];
       var g = byGame[folder] || (byGame[folder] = {
         id: "rom/" + folder,
         folder: folder,
-        title: single ? parts[2].replace(/\.[^.]+$/, "") : parts[2],
+        title: parts[2],
         console: con,
         consoleFolder: parts[1],
         unsupported: !!UNSUPPORTED[con],
@@ -141,7 +145,70 @@
             return pump();
           });
         });
-      }, Promise.resolve()).then(function () { return new File(blobs, g.fileName); });
+      }, Promise.resolve()).then(function () { return joinParts(blobs, g.fileName); });
     }
   };
+
+  // ---------- Joining parts ----------
+  var u32 = function (b, i) { return (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0; };
+  var u16 = function (b, i) { return b[i] | b[i + 1] << 8; };
+  var bytes = function (blob, from, to) { return blob.slice(from, to).arrayBuffer().then(function (a) { return new Uint8Array(a); }); };
+
+  // Is this blob a complete zip on its own? (ends with an end-of-central-directory record)
+  function zipEntries(blob) {
+    var tailStart = Math.max(0, blob.size - 65557);
+    return bytes(blob, tailStart, blob.size).then(function (t) {
+      for (var i = t.length - 22; i >= 0; i--) {
+        if (t[i] === 0x50 && t[i + 1] === 0x4b && t[i + 2] === 5 && t[i + 3] === 6) {
+          var count = u16(t, i + 10), cdSize = u32(t, i + 12), cdOff = u32(t, i + 16);
+          if (cdOff === 0xffffffff || cdOff + cdSize > blob.size) return null;   // zip64 or not a whole zip
+          return bytes(blob, cdOff, cdOff + cdSize).then(function (cd) {
+            var out = [], p = 0;
+            for (var n = 0; n < count && p + 46 <= cd.length; n++) {
+              if (u32(cd, p) !== 0x02014b50) return null;
+              var nameLen = u16(cd, p + 28), extra = u16(cd, p + 30), comment = u16(cd, p + 32);
+              var name = new TextDecoder().decode(cd.subarray(p + 46, p + 46 + nameLen));
+              out.push({ name: name, method: u16(cd, p + 10), csize: u32(cd, p + 20), size: u32(cd, p + 24), offset: u32(cd, p + 42) });
+              p += 46 + nameLen + extra + comment;
+            }
+            return out.filter(function (e) { return !/\/$/.test(e.name); });
+          });
+        }
+      }
+      return null;
+    });
+  }
+
+  function unzipEntry(blob, e) {
+    return bytes(blob, e.offset, e.offset + 30).then(function (h) {
+      if (u32(h, 0) !== 0x04034b50) throw new Error("A part is a damaged zip.");
+      var start = e.offset + 30 + u16(h, 26) + u16(h, 28);
+      var data = blob.slice(start, start + e.csize);
+      if (e.method === 0) return data;
+      if (e.method !== 8 || typeof DecompressionStream === "undefined") throw new Error("A part uses a zip format this browser can't open.");
+      return new Response(data.stream().pipeThrough(new DecompressionStream("deflate-raw"))).blob();
+    });
+  }
+
+  // One part: use it as is. Several parts: if every part is its own zip, take the file out of each
+  // and join those; otherwise the parts are pieces of one file, so join them directly.
+  function joinParts(blobs, fileName) {
+    if (blobs.length < 2) return Promise.resolve(new File(blobs, fileName));
+    return Promise.all([zipEntries(blobs[0]), zipEntries(blobs[1])]).then(function (z) {
+      if (!z[0] || !z[1]) return new File(blobs, fileName);
+      return blobs.reduce(function (p, b) {
+        return p.then(function (acc) {
+          return zipEntries(b).then(function (ents) {
+            if (!ents || !ents.length) throw new Error("A part is not a complete zip.");
+            return ents.reduce(function (q, e) {
+              return q.then(function () { return unzipEntry(b, e).then(function (x) { acc.blobs.push(x); acc.names.push(e.name); return acc; }); });
+            }, Promise.resolve(acc));
+          });
+        });
+      }, Promise.resolve({ blobs: [], names: [] })).then(function (acc) {
+        var inner = joinedName(acc.names[0].split("/").pop());
+        return new File(acc.blobs, inner);
+      });
+    });
+  }
 })();
