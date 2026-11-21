@@ -8,7 +8,7 @@ class EmulatorJS {
             "nes": ["fceumm", "nestopia"],
             "gb": ["gambatte"],
             "coleco": ["gearcoleco"],
-            "segaMS": ["smsplus", "genesis_plus_gx", "picodrive"],
+            "segaMS": ["genesis_plus_gx", "smsplus", "picodrive"], // Fruti: genesis_plus_gx first, it's the one bundled
             "segaMD": ["genesis_plus_gx", "picodrive"],
             "segaGG": ["genesis_plus_gx"],
             "segaCD": ["genesis_plus_gx", "picodrive"],

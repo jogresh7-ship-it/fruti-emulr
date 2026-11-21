@@ -59,9 +59,9 @@
   <button id="keysBtn" hidden title="Which keys to press">Controls</button>
   <div id="keys" hidden></div>
   <div id="game"><div class="msg">Loading…</div></div>
-  <script src="consoles.js?v=4"></script>
+  <script src="consoles.js?v=5"></script>
   <script src="games.js?v=10"></script>
-  <script src="library.js?v=16"></script>
+  <script src="library.js?v=17"></script>
   <script>
     // Console player (EmulatorJS). emu.html?game=rom/<Console>/<Game Name>
     // Only games found in the repo's rom/ folder can be played.
@@ -133,6 +133,17 @@
         segaMD: [["A", K.s], ["B", K.x], ["C", K.z], ["Start", K.enter], ["D-pad", K.arrows]],
         psx:    [["Move (left stick)", "W A S D"], ["✕ Cross", "K"], ["○ Circle", "L"], ["□ Square", "J"], ["△ Triangle", "I"], ["L1 / R1", "Q / E"], ["L2 / R2", "1 / 3"], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
         psp:    [["Move (analog stick)", "W A S D"], ["✕ Cross", "K"], ["○ Circle", "L"], ["□ Square", "J"], ["△ Triangle", "I"], ["L / R (camera, aim)", "Q / E"], ["D-pad", K.arrows], ["Start", K.enter], ["Select", K.v]],
+        segaMS: [["1", K.x], ["2", K.z], ["Pause / Start", K.enter], ["D-pad", K.arrows]],
+        segaGG: [["1", K.x], ["2", K.z], ["Start", K.enter], ["D-pad", K.arrows]],
+        sega32x: [["A", K.s], ["B", K.x], ["C", K.z], ["X / Y / Z", "A / Q / E"], ["Start", K.enter], ["Mode", K.v], ["D-pad", K.arrows]],
+        segaSaturn: [["A", K.s], ["B", K.x], ["C", K.z], ["X / Y / Z", "A / Q / E"], ["L / R", K.tab + " / " + K.r], ["Start", K.enter], ["D-pad", K.arrows]],
+        atari2600: [["Fire", K.x], ["Reset", K.enter], ["Select", K.v], ["Joystick", K.arrows]],
+        atari7800: [["Button 1", K.x], ["Button 2", K.z], ["Pause", K.enter], ["Select", K.v], ["Joystick", K.arrows]],
+        jaguar: [["A / B / C", "S / X / Z"], ["Pause", K.enter], ["Option", K.v], ["D-pad", K.arrows]],
+        ngp:    [["A", K.z], ["B", K.x], ["Option", K.enter], ["Stick", K.arrows]],
+        ws:     [["A", K.z], ["B", K.x], ["Start", K.enter], ["X pad", K.arrows], ["Y pad", "I J K L (in emulator menu)"]],
+        vb:     [["A", K.z], ["B", K.x], ["Start", K.enter], ["Select", K.v], ["Left pad", K.arrows], ["L / R", K.q + " / " + K.e]],
+        pce:    [["I", K.z], ["II", K.x], ["Run", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
         n64:    [["Move (stick)", "W A S D"], ["Look around (C buttons)", "I J K L"], ["A", "Space"], ["B", "Shift"], ["Z trigger", "Z"], ["L / R", "Q / E"], ["Start", K.enter], ["D-pad", K.arrows]]
       };
       function setUpControls(g) {
@@ -275,7 +286,7 @@
         window.EJS_CacheLimit = 0;              // don't also save a copy of the game in browser storage (never read back here; costs memory)
         window.EJS_pathtodata = "emulatorjs/data/";
         // ?v= makes browsers fetch emulator.js again after Fruti changes it (it has Fruti memory fixes)
-        window.EJS_paths = { "compression.js": "emulatorjs/fruti-compression.js", "emulator.js": "emulatorjs/data/src/emulator.js?v=fruti2" };
+        window.EJS_paths = { "compression.js": "emulatorjs/fruti-compression.js", "emulator.js": "emulatorjs/data/src/emulator.js?v=fruti3" };
         window.EJS_DEBUG_XX = true;             // load the non-minified scripts we ship
         window.EJS_startOnLoaded = true;
         window.EJS_threads = g.console === "psp"; // PSP (PPSSPP) needs threads; sw.js makes them possible
