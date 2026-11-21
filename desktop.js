@@ -53,13 +53,14 @@
     const p = h("button", "poster" + (blocked ? " blocked" : ""));
     p.title = blocked ? g.problem || "Can't be played" : "Play " + g.title;
     const art = h("div", "art");
+    if (c.box) art.style.aspectRatio = String(c.box);   // shaped like that console's game box
     if (g.image) art.style.backgroundImage = `url("${g.image}")`;
     else {
       art.classList.add("plain");
       if (g.color) art.style.background = `linear-gradient(160deg, ${g.color[0]}, ${g.color[1]})`;
       art.appendChild(h("div", "art-mark", esc(initials(g.title))));
     }
-    art.appendChild(h("span", "badge", esc(c.tag)));
+    if (!g.image) art.appendChild(h("span", "badge", esc(c.tag)));   // box art already shows the console
     art.appendChild(h("span", "play", blocked
       ? `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>`
       : `<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/></svg>`));

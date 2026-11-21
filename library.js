@@ -9,7 +9,8 @@
 //   parts        My Game.part001.zip, My Game.part002.zip, ... (or My Game.7z.001, .002, ...)
 //                are downloaded in order and joined. Works both for one file cut into pieces
 //                and for parts that are each their own zip.
-//   cover        any .jpg / .png / .webp in the game's folder is used as its cover
+//   cover        any .jpg / .png / .webp in the game's folder is used as its cover; for a loose
+//                game file, a picture with the same name next to it (My Game.zip -> My Game.jpg)
 //
 // games.js can add details (genres, description, colors) to a game by its folder.
 (function () {
@@ -81,13 +82,16 @@
   }
 
   function build(files) {
-    var byGame = {};
+    var byGame = {}, looseCovers = {};
     files.sort(natural).forEach(function (f) {
       var parts = f.path.split("/");                       // rom / Console / Game / file
       if (parts.length < 3 || SKIP.test(f.path)) return;
       var loose = parts.length === 3;                      // rom/Console/file.ext
       var con = CONSOLE_FOLDERS[parts[1].toLowerCase()];
       if (!con) return;
+      // A picture loose in rom/<Console>/ is the cover of the loose game with the same name:
+      // rom/DS/My Game.jpg -> rom/DS/My Game.zip
+      if (loose && IMAGE.test(f.path)) { looseCovers[(parts[1] + "/" + parts[2].replace(/\.[^.]+$/, "")).toLowerCase()] = url(f.path); return; }
       var folder = parts[1] + "/" + parts[2];
       var g = byGame[folder] || (byGame[folder] = {
         id: "rom/" + folder,
@@ -106,6 +110,7 @@
       g.size += f.size;
     });
     var games = Object.keys(byGame).map(function (k) { return byGame[k]; }).filter(function (g) { return g.files.length; });
+    games.forEach(function (g) { if (g.loose && !g.image) g.image = looseCovers[(g.consoleFolder + "/" + g.title).toLowerCase()]; });
     games.forEach(function (g) {
       g.fileName = joinedName(g.files[0].path.split("/").pop());
       g.urls = g.files.map(function (f) { return url(f.path); });

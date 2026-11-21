@@ -37,7 +37,7 @@ On GitHub: open the console folder, then **Add file → Upload files**, and drag
 - **One-file games** can also go straight into the console folder, like `rom/DS/New Super Mario Bros..zip`; the file name is the title. Games in parts must have their own folder.
 - **Parts:** the GitHub website takes files up to 25 MB (git and GitHub Desktop: 100 MB), so split big games and upload every part to the game's folder. The launcher downloads them in order and joins them. Names like `My Game.part001.zip`, `My Game part 1.zip`, `My Game (Part 1).zip` and `My Game.zip.001` all work, both for one file cut into pieces and for parts that are each their own zip.
 - **File types:** `.zip`, `.7z` or the plain ROM (`.nds`, `.gba`, ...). Parts of a `.7z` work too, even when they're named `.zip` (like `My Game.part001.zip`), and so do 7-Zip volumes (`My Game.7z.001`, `.002`, ...).
-- **Cover:** put a `.jpg` or `.png` in the game's folder.
+- **Cover:** put a `.jpg` or `.png` in the game's folder. For a one-file game, give the picture the same name as the game file, next to it (`rom/DS/My Game.zip` → `rom/DS/My Game.jpg`). Posters take the shape of that console's game box (tall for PSP, almost square for DS), set by `box` in `consoles.js`.
 - **PlayStation `.cue` + `.bin`:** put them in one `.zip`.
 - **Details (optional):** genres, a description or colors go in `games.js`, by folder.
 - **PSP** games (`.iso`, `.cso`, `.pbp`, or zipped / 7z) only play on the website (GitHub Pages), on a computer with an up-to-date Chrome, Edge or Firefox. The PSP emulator needs multi-threading, which GitHub Pages doesn't switch on by itself, so `sw.js` switches it on for the player page. Big PSP games take a while to load and need a lot of memory.
