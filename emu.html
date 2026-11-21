@@ -22,7 +22,7 @@
   <script src="games.js"></script>
   <script>
     // Console player (EmulatorJS).
-    //   emu.html?system=<console>&game=<rom id>  -> plays games/<console>/<rom id>.js (ROM embedded as base64)
+    //   emu.html?system=<console>&game=<rom id>  -> plays rom/<console>/<rom id>.js (ROM embedded as base64)
     //   emu.html?system=<console>                -> lets you pick a ROM file from your computer
     (function () {
       var stage = document.getElementById("game");
@@ -83,7 +83,7 @@
         var g = (window.FRUTI_GAMES || []).filter(function (x) { return x.rom === id && (x.console || "n64") === sys.id; })[0];
         if (g && g.image) { var l = document.createElement("link"); l.rel = "icon"; l.href = g.image; document.head.appendChild(l); }
         stage.innerHTML = '<div class="msg">Loading…</div>';
-        loadScript("games/" + sys.id + "/" + id + ".js").then(function () {
+        loadScript("rom/" + sys.id + "/" + id + ".js").then(function () {
           var bytes = b64ToBytes(window.FRUTI_ROM[id]);
           delete window.FRUTI_ROM[id];
           start(bytes, g ? g.title : id);

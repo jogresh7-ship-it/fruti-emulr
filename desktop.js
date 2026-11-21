@@ -1,4 +1,4 @@
-// Fruti Launcher - desktop-style UI (library list + details, grid and list views).
+// Fruti - ROM game launcher (library list + details, grid and list views).
 (() => {
   "use strict";
   const VERSION = "12";
@@ -7,7 +7,8 @@
   const BASE = /^(https?|file):$/.test(location.protocol) ? "" : SITE;
   const abs = (p) => (!p || /^[a-z]+:/i.test(p) ? p : BASE + p);
 
-  const games = window.FRUTI_GAMES || [];
+  // ROM games only: entries need `rom` (file in rom/<console>/) and `console`
+  const games = (window.FRUTI_GAMES || []).filter((g) => g.rom);
   const CONSOLES = window.FRUTI_CONSOLES || [];
   const byId = Object.fromEntries(games.map((g) => [g.id, g]));
   const $ = (s, r = document) => r.querySelector(s);
@@ -15,7 +16,7 @@
   const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  // ---------- Storage (same keys as the classic UI, so play time is shared) ----------
+  // ---------- Storage (emu.html saves play time under the same keys) ----------
   const store = {
     get(k, d) { try { const v = localStorage.getItem("fruti:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
     set(k, v) { try { localStorage.setItem("fruti:" + k, JSON.stringify(v)); } catch {} },
@@ -50,8 +51,6 @@
     emulators: `<svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15.5A3 3 0 0 0 7.2 18l1.3-2h7l1.3 2a3 3 0 0 0 5.2-2.5l-.7-6.9A4 4 0 0 0 17.3 5z"/></svg>`,
     stats: `<svg viewBox="0 0 24 24"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>`,
     settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`,
-    flash: `<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>`,
-    web: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>`,
     pad: `<svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15.5A3 3 0 0 0 7.2 18l1.3-2h7l1.3 2a3 3 0 0 0 5.2-2.5l-.7-6.9A4 4 0 0 0 17.3 5z"/></svg>`,
     play: `<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/></svg>`,
     chev: `<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>`,
@@ -59,12 +58,10 @@
   };
 
   // ---------- Platforms ----------
-  const PLAT = {
-    flash: { name: "Flash", tag: "FLASH", engine: "Ruffle", icon: ICON.flash },
-    web: { name: "Web", tag: "WEB", engine: "Browser", icon: ICON.web },
-  };
+  const PLAT = {};
   CONSOLES.forEach((c) => { PLAT[c.id] = { name: c.name, tag: c.tag, engine: "EmulatorJS", icon: ICON.pad }; });
-  const platOf = (g) => g.rom ? (g.console || "n64") : g.swf ? "flash" : "web";
+  const platOf = (g) => g.console || "n64";
+  games.forEach((g) => { if (!PLAT[platOf(g)]) PLAT[platOf(g)] = { name: platOf(g), tag: platOf(g).toUpperCase(), engine: "EmulatorJS", icon: ICON.pad }; });
   const badge = (g) => { const p = PLAT[platOf(g)]; return `<span class="badge">${p.icon}${esc(p.tag)}</span>`; };
 
   // ---------- Page buttons (top right) ----------
@@ -134,7 +131,7 @@
     renderDetails();
   }
 
-  const emptyMsg = () => h("div", "empty", games.length ? "No games match. <button class='link' data-clear>Clear filters</button>" : "No games yet. Add some in games.js.");
+  const emptyMsg = () => h("div", "empty", games.length ? "No games match. <button class='link' data-clear>Clear filters</button>" : "No ROM games yet. Add some with rom/add-rom.py, or open Emulators to play a ROM from your computer.");
 
   function groupHead(name, count, wrap) {
     const key = ui.group + ":" + name;
@@ -243,10 +240,7 @@
             <h3>Description</h3>
             <p>${esc(g.desc || "No description yet.")}</p>
             <h3>How to play</h3>
-            <p>${platOf(g) === "flash"
-              ? "Opens in a new tab and runs through Ruffle. Click the game once if it does not react to keys. Press F11 for fullscreen."
-              : platOf(g) === "web" ? "Opens the game page in a new tab."
-              : "Opens in a new tab and runs through EmulatorJS. A gamepad works too."}</p>
+            <p>Opens in a new tab and runs through EmulatorJS. Keyboard or a gamepad both work. Press F11 for fullscreen.</p>
           </div>
           <aside class="d-info">
             <dl>
@@ -277,8 +271,7 @@
   // ---------- Play (opens in a new tab) ----------
   function play(g) {
     const sys = platOf(g);
-    const src = abs(g.rom ? `emu.html?v=${VERSION}&system=${sys}&game=${encodeURIComponent(g.rom)}` : g.swf ? `play.html?v=${VERSION}&game=${encodeURIComponent(g.swf)}` : g.url);
-    if (!src) { alert("No game file set for " + g.title + " yet."); return; }
+    const src = abs(`emu.html?v=${VERSION}&system=${sys}&game=${encodeURIComponent(g.rom)}`);
     history = [{ id: g.id, at: Date.now() }, ...history.filter((x) => x.id !== g.id)].slice(0, 40);
     store.set("history", history);
     window.open(src, "_blank");

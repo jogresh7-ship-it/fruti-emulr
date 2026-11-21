@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Make base64 .js copies of the EmulatorJS files it downloads at runtime,
-so n64.html works from file:// (no server). Output: emulatorjs/embed/*.js"""
+so emu.html works from file:// (no server). Output: emulatorjs/embed/*.js"""
 import base64, os
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 data = os.path.join(root, "emulatorjs", "data")
