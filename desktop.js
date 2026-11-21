@@ -7,10 +7,12 @@
   const BASE = /^(https?|file):$/.test(location.protocol) ? "" : SITE;
   const abs = (p) => (!p || /^[a-z]+:/i.test(p) ? p : BASE + p);
 
-  // ROM games only: entries need `rom` (file in rom/<console>/) and `console`
-  const games = (window.FRUTI_GAMES || []).filter((g) => g.rom);
+  // Games are found in the repo's rom/<Console>/<Game Name>/ folders (see library.js)
+  let games = [];
+  let byId = {};
+  let loadState = "loading"; // loading | ok | error
+  let loadError = "";
   const CONSOLES = window.FRUTI_CONSOLES || [];
-  const byId = Object.fromEntries(games.map((g) => [g.id, g]));
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -59,8 +61,9 @@
   // ---------- Platforms ----------
   const PLAT = {};
   CONSOLES.forEach((c) => { PLAT[c.id] = { name: c.name, tag: c.tag, engine: "EmulatorJS", icon: ICON.pad }; });
+  PLAT.psp = { name: "PlayStation Portable", tag: "PSP", engine: "Not supported yet", icon: ICON.pad };
   const platOf = (g) => g.console || "n64";
-  games.forEach((g) => { if (!PLAT[platOf(g)]) PLAT[platOf(g)] = { name: platOf(g), tag: platOf(g).toUpperCase(), engine: "EmulatorJS", icon: ICON.pad }; });
+  const mb = (n) => n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : Math.max(0.1, n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB";
   const badge = (g) => { const p = PLAT[platOf(g)]; return `<span class="badge">${p.icon}${esc(p.tag)}</span>`; };
 
   // ---------- Page buttons (top right) ----------
@@ -103,7 +106,7 @@
     if (ui.group === "none") return [[null, list]];
     const m = new Map();
     const add = (k, g) => { if (!m.has(k)) m.set(k, []); m.get(k).push(g); };
-    list.forEach((g) => ui.group === "genre" ? (g.tags.length ? g.tags : ["Other"]).forEach((t) => add(t, g)) : add(PLAT[platOf(g)].name, g));
+    list.forEach((g) => ui.group === "genre" ? (g.tags.length ? g.tags : [PLAT[platOf(g)].name]).forEach((t) => add(t, g)) : add(PLAT[platOf(g)].name, g));
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }
   const filterActive = () => !!$("#search").value.trim() || ui.platform !== "all" || ui.favOnly;
@@ -129,7 +132,11 @@
     renderDetails();
   }
 
-  const emptyMsg = () => h("div", "empty", games.length ? "No games match. <button class='link' data-clear>Clear filters</button>" : "No games yet.");
+  const emptyMsg = () => h("div", "empty",
+    loadState === "loading" ? "Loading games from GitHub…"
+    : loadState === "error" && !games.length ? `Couldn't load games from GitHub. ${esc(loadError)} <button class='link' data-reload>Try again</button>`
+    : games.length ? "No games match. <button class='link' data-clear>Clear filters</button>"
+    : "No games yet. Upload one on GitHub to <b>rom/&lt;console&gt;/&lt;game name&gt;/</b>, for example rom/PS/Crash Bandicoot/. <button class='link' data-reload>Check again</button>");
 
   function groupHead(name, count, wrap) {
     const key = ui.group + ":" + name;
@@ -215,7 +222,8 @@
     const box = $("#details");
     const g = byId[ui.sel];
     box.classList.toggle("no-bg", !ui.bgArt);
-    if (!g) { box.innerHTML = `<div class="empty big">${games.length ? "Select a game" : "Your library is empty"}</div>`; return; }
+    if (!g) { box.innerHTML = `<div class="empty big">${loadState === "loading" ? "Loading…" : games.length ? "Select a game" : "Your library is empty"}</div>`; return; }
+    const blocked = g.unsupported ? `${esc(g.consoleFolder)} games can't be played yet.` : g.problem ? esc(g.problem) : "";
     const p = PLAT[platOf(g)];
     const t = times[g.id] || 0, last = lastAt(g.id);
     const fav = favs.has(g.id);
@@ -227,7 +235,7 @@
           <h1 class="d-title">${esc(g.title)}</h1>
         </div>
         <div class="d-actions">
-          <button class="btn-play" id="d-play">${ICON.play}<span>Play</span></button>
+          <button class="btn-play" id="d-play"${blocked ? " disabled" : ""}>${ICON.play}<span>Play</span></button>
           <div class="d-stat"><small>Time played</small><b>${t ? fmt(t) : "Not played"}</b></div>
           <div class="d-stat"><small>Last played</small><b>${ago(last)}</b></div>
           <button class="d-fav${fav ? " on" : ""}" id="d-fav" title="Favorite (F)">${ICON.fav}<span>${fav ? "Favorite" : "Add to favorites"}</span></button>
@@ -238,15 +246,16 @@
             <h3>Description</h3>
             <p>${esc(g.desc || "No description yet.")}</p>
             <h3>How to play</h3>
-            <p>Opens in a new tab and runs through EmulatorJS. Keyboard or a gamepad both work. Press F11 for fullscreen.</p>
+            <p>${blocked || "Opens in a new tab, downloads the game and runs it through EmulatorJS. Keyboard or a gamepad both work. Press F11 for fullscreen."}</p>
           </div>
           <aside class="d-info">
             <dl>
               <dt>Recent activity</dt><dd>${last ? "Played " + ago(last).toLowerCase() : "No activity yet"}</dd>
               <dt>Platform</dt><dd>${badge(g)}</dd>
-              <dt>Library</dt><dd>Fruti</dd>
+              <dt>Folder</dt><dd>rom/${esc(g.folder)}</dd>
+              <dt>Size</dt><dd>${mb(g.size)}${g.files.length > 1 ? ` in ${g.files.length} parts` : ""}</dd>
               <dt>Engine</dt><dd>${esc(p.engine)}</dd>
-              <dt>Genres</dt><dd class="chips">${g.tags.map((x) => `<button class="chip" data-tag="${esc(x)}">${esc(x)}</button>`).join("")}</dd>
+              ${g.tags.length ? `<dt>Genres</dt><dd class="chips">${g.tags.map((x) => `<button class="chip" data-tag="${esc(x)}">${esc(x)}</button>`).join("")}</dd>` : ""}
               <dt>Completion</dt><dd>${t >= 3600000 ? "Playing a lot" : t ? "Played" : "Not played"}</dd>
             </dl>
           </aside>
@@ -268,8 +277,8 @@
 
   // ---------- Play (opens in a new tab) ----------
   function play(g) {
-    const sys = platOf(g);
-    const src = abs(`emu.html?v=${VERSION}&system=${sys}&game=${encodeURIComponent(g.rom)}`);
+    if (g.unsupported || g.problem) return;
+    const src = abs(`emu.html?v=${VERSION}&game=${encodeURIComponent(g.id)}`);
     history = [{ id: g.id, at: Date.now() }, ...history.filter((x) => x.id !== g.id)].slice(0, 40);
     store.set("history", history);
     window.open(src, "_blank");
@@ -284,13 +293,16 @@
     const list = visible(); if (!list.length) return;
     showPage("library");
     const g = list[Math.floor(Math.random() * list.length)];
-    (g.tags.length ? g.tags : ["Other"]).forEach((t) => delete ui.collapsed["genre:" + t]);
+    (g.tags.length ? g.tags : [PLAT[platOf(g)].name]).forEach((t) => delete ui.collapsed["genre:" + t]);
     delete ui.collapsed["platform:" + PLAT[platOf(g)].name];
     ui.sel = g.id; renderLibrary(); select(g.id, true);
   };
   $("#filter-chip").onclick = clearFilters;
   function clearFilters() { $("#search").value = ""; ui.platform = "all"; ui.favOnly = false; saveUi(); renderLibrary(); }
-  document.addEventListener("click", (e) => { if (e.target.closest("[data-clear]")) { showPage("library"); clearFilters(); } });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-clear]")) { showPage("library"); clearFilters(); }
+    if (e.target.closest("[data-reload]")) loadGames(true);
+  });
 
   // Small dropdown menus
   const menu = $("#menu");
@@ -359,7 +371,7 @@
         <div class="bar-row"><span>${esc(g.title)}</span><div class="bar"><i style="width:${Math.max(3, times[g.id] / max * 100)}%"></i></div><b>${fmt(times[g.id])}</b></div>`).join("")
         : `<p class="pg-sub">Play something and it shows up here.</p>`}</div>
       <div class="set-card"><h3>Games per platform</h3>${Object.entries(per).sort((a, b) => b[1] - a[1]).map(([n, c]) => `
-        <div class="bar-row"><span>${esc(n)}</span><div class="bar"><i style="width:${c / games.length * 100}%"></i></div><b>${c}</b></div>`).join("")}</div>`;
+        <div class="bar-row"><span>${esc(n)}</span><div class="bar"><i style="width:${c / Math.max(1, games.length) * 100}%"></i></div><b>${c}</b></div>`).join("")}</div>`;
   }
 
   // ---------- Settings ----------
@@ -379,6 +391,7 @@
   $("#set-bg").onchange = (e) => { ui.bgArt = e.target.checked; saveUi(); renderDetails(); };
   $("#set-titles").checked = ui.titles;
   $("#set-titles").onchange = (e) => { ui.titles = e.target.checked; saveUi(); renderLibrary(); };
+  $("#set-reload").onclick = () => { showPage("library"); loadGames(true); };
   $("#set-clear").onclick = () => {
     if (!confirm("Clear play history and play time?")) return;
     history = []; times = {}; store.set("history", history); store.set("times", times); renderLibrary();
@@ -394,9 +407,20 @@
 
   const clock = () => { $("#clock").textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
 
+  // ---------- Load games from GitHub ----------
+  function loadGames(force) {
+    loadState = "loading"; renderLibrary();
+    FrutiLibrary.load(force).then((list) => {
+      games = list; byId = Object.fromEntries(games.map((g) => [g.id, g]));
+      loadState = "ok";
+    }).catch((e) => { loadState = "error"; loadError = e.message; })
+      .then(() => { renderLibrary(); if (ui.page === "stats") renderStats(); });
+  }
+
   // ---------- Init ----------
   applyAccent();
   showPage(["library", "stats", "settings"].includes(ui.page) ? ui.page : "library");
   renderLibrary();
+  loadGames(false);
   clock(); setInterval(clock, 10000);
 })();

@@ -5,32 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Fruti Player</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #f3f5f8; font-family: Inter, system-ui, sans-serif; }
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #f3f5f8; font-family: "Segoe UI", Roboto, Inter, system-ui, sans-serif; }
     #game { width: 100%; height: 100%; }
-    .pick { height: 100%; display: grid; place-items: center; text-align: center; padding: 16px; box-sizing: border-box; }
-    .pick-box { max-width: 460px; background: rgba(13,17,24,.9); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 32px; }
-    .pick h1 { font-size: 22px; margin: 0 0 8px; }
-    .pick p { color: #8d95a5; font-size: 14px; line-height: 1.6; margin: 0 0 22px; }
-    .pick label { display: inline-block; background: #fff; color: #000; font-weight: 700; padding: 13px 22px; border-radius: 10px; cursor: pointer; }
-    .pick input { display: none; }
-    .msg { height: 100%; display: grid; place-items: center; color: #8d95a5; padding: 16px; text-align: center; }
+    .msg { height: 100%; display: grid; place-items: center; align-content: center; gap: 14px; color: #8d95a5; padding: 16px; box-sizing: border-box; text-align: center; }
+    .msg b { color: #f3f5f8; font-size: 18px; }
+    .bar { width: min(360px, 80vw); height: 8px; border-radius: 4px; background: #232934; overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: #29b6f6; transition: width .2s; }
   </style>
 </head>
 <body>
-  <div id="game"></div>
+  <div id="game"><div class="msg">Loading…</div></div>
   <script src="consoles.js"></script>
   <script src="games.js"></script>
+  <script src="library.js"></script>
   <script>
-    // Console player (EmulatorJS).
-    //   emu.html?system=<console>&game=<rom>  plays a game listed in games.js:
-    //     rom: "my-game"            -> rom/<console>/my-game.js (made by rom/add-rom.py; works from file://)
-    //     rom: "My Game.zip" / .nds -> rom/<console>/My Game.zip  (plain file; needs a web server such as GitHub Pages)
+    // Console player (EmulatorJS). emu.html?game=rom/<Console>/<Game Name>
+    // Only games found in the repo's rom/ folder can be played.
     (function () {
       var stage = document.getElementById("game");
-      var q = new URLSearchParams(location.search);
-      var id = q.get("game");
-      var sys = (window.FRUTI_CONSOLES || []).filter(function (c) { return c.id === (q.get("system") || "n64"); })[0];
-      if (!sys) { stage.innerHTML = '<div class="msg">Unknown console.</div>'; return; }
+      var id = new URLSearchParams(location.search).get("game") || "";
+      var show = function (title, text) {
+        stage.innerHTML = '<div class="msg"><b></b><span></span></div>';
+        stage.querySelector("b").textContent = title;
+        stage.querySelector("span").textContent = text || "";
+      };
+      var mb = function (n) { return (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB"; };
 
       function loadScript(src) {
         return new Promise(function (ok, fail) {
@@ -39,28 +38,22 @@
           document.head.appendChild(s);
         });
       }
-      function b64ToBytes(b64) {
-        if (Uint8Array.fromBase64) return Uint8Array.fromBase64(b64);
-        var bin = atob(b64), out = new Uint8Array(bin.length);
-        for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-        return out;
-      }
 
-      function start(rom, name) {
-        document.title = name + " - Fruti";
+      function start(file, g) {
+        document.title = g.title + " - Fruti";
         stage.innerHTML = "";
         window.EJS_player = "#game";
-        window.EJS_core = sys.id;
-        window.EJS_gameName = name;
-        window.EJS_gameUrl = rom;               // URL, File, Blob or Uint8Array
+        window.EJS_core = g.console;
+        window.EJS_gameName = g.title;
+        window.EJS_gameUrl = file;              // File (joined from its parts)
         window.EJS_pathtodata = "emulatorjs/data/";
         window.EJS_paths = { "compression.js": "emulatorjs/fruti-compression.js" };
         window.EJS_DEBUG_XX = true;             // load the non-minified scripts we ship
         window.EJS_startOnLoaded = true;
         window.EJS_threads = false;             // GitHub Pages can't enable SharedArrayBuffer
-        window.EJS_color = "#22c55e";
+        window.EJS_color = "#29b6f6";
         loadScript("emulatorjs/data/loader.js");
-        trackTime(id || name);
+        trackTime(g.id);
       }
 
       // Save play time (read by the launcher tab)
@@ -79,36 +72,28 @@
         document.addEventListener("visibilitychange", function () { if (document.hidden) save(); else last = Date.now(); });
       }
 
-      if (id) {
-        var g = (window.FRUTI_GAMES || []).filter(function (x) { return x.rom === id && (x.console || "n64") === sys.id; })[0];
-        // Only games added to games.js can be played
-        if (!g) { stage.innerHTML = '<div class="msg">This game is not in the library.</div>'; return; }
-        // Only files directly inside rom/<console>/
-        if (/[\/\\]|^\.+$/.test(id)) { stage.innerHTML = '<div class="msg">Invalid game file name.</div>'; return; }
+      if (!id) { show("No game selected."); return; }
+      FrutiLibrary.load().then(function (games) {
+        var g = games.filter(function (x) { return x.id === id; })[0];
+        if (!g) { show("This game is not in the library."); return; }
+        document.title = g.title + " - Fruti";
         if (g.image) { var l = document.createElement("link"); l.rel = "icon"; l.href = g.image; document.head.appendChild(l); }
+        if (g.unsupported) { show(g.title, g.consoleFolder + " games can't be played yet."); return; }
+        if (g.problem) { show(g.title, g.problem); return; }
 
-        // Plain game file (has an extension): the emulator downloads it
-        if (/\.[a-z0-9]{1,5}$/i.test(id)) {
-          if (location.protocol === "file:") {
-            stage.innerHTML = '<div class="msg">' + g.title + ' is a plain game file, so it only plays from the website (GitHub Pages).<br>' +
-              'To play it from your computer, convert it with rom/add-rom.py.</div>';
-            return;
-          }
-          start("rom/" + sys.id + "/" + encodeURIComponent(id), g.title);
-          return;
-        }
-
-        stage.innerHTML = '<div class="msg">Loading…</div>';
-        loadScript("rom/" + sys.id + "/" + id + ".js").then(function () {
-          var bytes = b64ToBytes(window.FRUTI_ROM[id]);
-          delete window.FRUTI_ROM[id];
-          start(bytes, g.title);
-        }).catch(function () {
-          stage.innerHTML = '<div class="msg">This game failed to load.</div>';
-        });
-      } else {
-        stage.innerHTML = '<div class="msg">No game selected.</div>';
-      }
+        stage.innerHTML = '<div class="msg"><b></b><div class="bar"><i></i></div><span></span></div>';
+        stage.querySelector("b").textContent = g.title;
+        var bar = stage.querySelector(".bar i"), txt = stage.querySelector("span");
+        var parts = g.files.length > 1 ? " (" + g.files.length + " parts)" : "";
+        txt.textContent = "Downloading" + parts + "…";
+        FrutiLibrary.download(g, function (done, total) {
+          if (total) bar.style.width = Math.min(100, done / total * 100) + "%";
+          txt.textContent = "Downloading" + parts + " " + mb(done) + (total ? " of " + mb(total) : "");
+        }).then(function (file) { start(file, g); })
+          .catch(function (e) { show(g.title, "Download failed. " + e.message); });
+      }).catch(function (e) {
+        show("Couldn't load the game list from GitHub.", e.message);
+      });
     })();
   </script>
 </body>

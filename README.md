@@ -1,51 +1,38 @@
 # Fruti Emulr
 
-A ROM game launcher made of plain HTML, CSS and JavaScript. **No server needed:** download the folder and double-click `index.html`. It also works on GitHub Pages.
+A ROM game launcher made of plain HTML, CSS and JavaScript. Open it on GitHub Pages, or download the folder and double-click `index.html`.
 
-Consoles: Nintendo DS, Nintendo 64, Game Boy Advance, Game Boy / Color, SNES, NES, Sega Genesis and PlayStation. Games run through [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3, bundled in `emulatorjs/` (GPL-3.0).
+## Adding a game
 
-## Folders
+Upload it on GitHub. The launcher finds it by itself; nothing else to edit.
 
-- `rom/`: your ROM games, one folder per console (`rom/nds/`, `rom/gba/`, ...), plus `add-rom.py` for adding them.
-- `emulatorjs/`: the emulator engine. The games can't run without it.
+```
+rom/<Console>/<Game Name>/<game file>
+```
 
-## Adding a ROM game
+| Console folder | Console |
+|---|---|
+| `PS` | PlayStation (PS1) |
+| `DS` | Nintendo DS |
+| `GBA` | Game Boy Advance |
+| `GB` | Game Boy / Game Boy Color |
+| `N64` | Nintendo 64 |
+| `SNES` | Super Nintendo |
+| `NES` | NES |
+| `Genesis` | Sega Genesis / Mega Drive |
 
-Console ids (also the folder names inside `rom/`): `nds`, `n64`, `gba`, `gb`, `snes`, `nes`, `segaMD`, `psx`.
+For example `rom/DS/New Super Mario Bros/New Super Mario Bros.zip`. On GitHub: open the console folder, then **Add file → Upload files**, and drag in a folder named after the game.
 
-### Easy way: upload the file (plays on GitHub Pages)
+- **Title:** the folder name.
+- **Big games:** the GitHub website takes files up to 25 MB (git and GitHub Desktop: 100 MB). Split the game and upload all the parts to the game's folder, named `My Game.zip.001`, `My Game.zip.002`, ... The launcher downloads the parts and joins them back together.
+- **Cover:** put a `.jpg` or `.png` in the game's folder.
+- **PlayStation `.cue` + `.bin`:** put them in one `.zip`.
+- **Details (optional):** genres, a description or colors go in `games.js`, by folder.
+- **PSP** isn't supported yet: a `rom/PSP/` game shows up but can't be played.
 
-1. Upload the game file (`.nds`, `.gba`, `.zip`, ...) to `rom/<console>/`, for example `rom/nds/New Super Mario Bros.zip`. The GitHub website takes files up to 25 MB, so zip big games.
-2. Add an entry to `games.js` with `rom` set to the exact file name:
+The game list comes from GitHub, so the launcher needs internet, also when you double-click `index.html`. Only games in the repo's `rom/` folder can be played; visitors can't load their own ROMs. Anything in this public repo can be downloaded by anyone.
 
-   ```js
-   { id: "nsmb", title: "New Super Mario Bros.", tags: ["Platformer"], rom: "New Super Mario Bros.zip", console: "nds" },
-   ```
-
-These games play on the website. Browsers don't let pages opened from disk load plain files, so they won't play when you double-click `index.html`; use the offline way for that.
-
-### Offline way: convert the file (also plays from disk)
-
-1. Convert the ROM once:
-
-   ```bash
-   python3 rom/add-rom.py path/to/my-game.nds my-game nds
-   ```
-
-   This writes `rom/nds/my-game.js`.
-2. Add an entry to `games.js` with `rom` set to the id, without an extension:
-
-   ```js
-   { id: "my-game", title: "My Game", tags: ["Action"], rom: "my-game", console: "nds" },
-   ```
-
-Optional fields: `image` (a cover picture; put it in `rom/` too), `color` (two colors for the gradient used when there's no cover) and `desc` (description).
-
-Only games listed in `games.js` can be played. Visitors can't load or run their own ROMs.
-
-### Why ROMs are `.js` files
-
-Browsers block `fetch()` for pages opened from disk (`file://`), so plain ROM files can't load without a server. Script tags are allowed, so each ROM is stored as base64 inside a `.js` file and loaded that way.
+Games run through [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3, bundled in `emulatorjs/` (GPL-3.0).
 
 ## Features
 
@@ -53,4 +40,4 @@ Browsers block `fetch()` for pages opened from disk (`file://`), so plain ROM fi
 - Page buttons at the top right: Library, Statistics, Settings
 - Three views: **Details** (grouped game list + a big details page with Play button and time played), **Grid** (cover cards with a console badge) and **List** (sortable table)
 - Keyboard: `/` search, arrow keys to select, `Enter` to play, `F` to favorite; double-click a game to play it
-- Settings: accent color, grid cover size, background art and grid titles
+- Settings: accent color, grid cover size, background art, grid titles and **Reload games from GitHub**

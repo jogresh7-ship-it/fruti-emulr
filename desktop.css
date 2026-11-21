@@ -192,6 +192,7 @@ kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 4
   transition: background .15s, transform .1s;
 }
 .btn-play:hover { background: var(--play-hi); }
+.btn-play:disabled { background: #3a414d; box-shadow: none; cursor: not-allowed; opacity: .7; }
 .btn-play:active { transform: scale(.97); }
 .btn-play svg { width: 18px; height: 18px; }
 .btn-play.sm { height: 36px; padding: 0 16px 0 12px; font-size: 13px; letter-spacing: .06em; }
