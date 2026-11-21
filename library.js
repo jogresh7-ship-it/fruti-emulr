@@ -2,7 +2,7 @@
 //
 //   rom/<Console>/<Game Name>/<game file or parts>
 //
-//   <Console>    a folder name from CONSOLE_FOLDERS below, e.g. PS, DS, GBA
+//   <Console>    a folder name from CONSOLE_FOLDERS below, e.g. PS, PSP, DS, GBA
 //   <Game Name>  a folder per game. A single, complete game file may also sit directly in
 //                rom/<Console>/ (its file name is the title); parts must be in a game folder.
 //   files        .zip and .7z archives or plain ROMs (.nds, .gba, ...)
@@ -28,9 +28,9 @@
     "snes": "snes", "super nintendo": "snes",
     "nes": "nes",
     "genesis": "segaMD", "sega genesis": "segaMD", "mega drive": "segaMD", "md": "segaMD",
-    "psp": "psp"                                 // listed, but not playable yet
+    "psp": "psp", "playstation portable": "psp"
   };
-  var UNSUPPORTED = { psp: true };
+  var UNSUPPORTED = {};
 
   var IMAGE = /\.(jpe?g|png|webp|gif)$/i;
   var SKIP = /(^|\/)\.|\.(md|txt|py|js|json|html|css)$/i;

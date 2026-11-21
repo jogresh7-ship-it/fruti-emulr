@@ -20,6 +20,7 @@ rom/<Console>/<Game Name>/<game file>
 | `SNES` | Super Nintendo |
 | `NES` | NES |
 | `Genesis` | Sega Genesis / Mega Drive |
+| `PSP` | PlayStation Portable |
 
 Every game needs its own folder, named after the game. Put the game file, or all of its parts, inside:
 
@@ -39,11 +40,11 @@ On GitHub: open the console folder, then **Add file → Upload files**, and drag
 - **Cover:** put a `.jpg` or `.png` in the game's folder.
 - **PlayStation `.cue` + `.bin`:** put them in one `.zip`.
 - **Details (optional):** genres, a description or colors go in `games.js`, by folder.
-- **PSP** isn't supported yet: a `rom/PSP/` game shows up but can't be played.
+- **PSP** games (`.iso`, `.cso`, `.pbp`, or zipped / 7z) only play on the website (GitHub Pages), on a computer with an up-to-date Chrome, Edge or Firefox. The PSP emulator needs multi-threading, which GitHub Pages doesn't switch on by itself, so `sw.js` switches it on for the player page. Big PSP games take a while to load and need a lot of memory.
 
 The game list comes from GitHub, so the launcher needs internet, also when you double-click `index.html`. Only games in the repo's `rom/` folder can be played; visitors can't load their own ROMs. Anything in this public repo can be downloaded by anyone.
 
-Games run through [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3, bundled in `emulatorjs/` (GPL-3.0).
+Games run through [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3, bundled in `emulatorjs/` (GPL-3.0). PSP games use its [PPSSPP](https://github.com/EmulatorJS/ppsspp) core (GPL-2.0 or later).
 
 ## Features
 

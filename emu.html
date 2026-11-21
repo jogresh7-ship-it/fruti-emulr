@@ -50,7 +50,7 @@
         window.EJS_paths = { "compression.js": "emulatorjs/fruti-compression.js" };
         window.EJS_DEBUG_XX = true;             // load the non-minified scripts we ship
         window.EJS_startOnLoaded = true;
-        window.EJS_threads = false;             // GitHub Pages can't enable SharedArrayBuffer
+        window.EJS_threads = g.console === "psp"; // PSP (PPSSPP) needs threads; sw.js makes them possible
         window.EJS_color = "#29b6f6";
         loadScript("emulatorjs/data/loader.js");
         trackTime(g.id);
@@ -72,6 +72,30 @@
         document.addEventListener("visibilitychange", function () { if (document.hidden) save(); else last = Date.now(); });
       }
 
+      // PSP games need multi-threading (SharedArrayBuffer), which needs a cross-origin isolated page.
+      // On GitHub Pages sw.js provides that: install it, then reload once so it takes effect.
+      function pspReady(g) {
+        var key = "fruti:psp-reload:" + id;
+        if (window.crossOriginIsolated && typeof SharedArrayBuffer === "function") { sessionStorage.removeItem(key); return true; }
+        if (location.protocol === "file:" || !("serviceWorker" in navigator) || !window.isSecureContext) {
+          show(g.title, "PSP games only play on the website (GitHub Pages), not when index.html is opened from your computer.");
+          return false;
+        }
+        if (sessionStorage.getItem(key)) {
+          sessionStorage.removeItem(key);
+          show(g.title, "This browser can't run PSP games. Try a recent Chrome, Edge or Firefox on a computer.");
+          return false;
+        }
+        show(g.title, "Getting the PSP emulator ready…");
+        navigator.serviceWorker.register("sw.js").then(function () { return navigator.serviceWorker.ready; }).then(function () {
+          sessionStorage.setItem(key, "1");
+          location.reload();
+        }).catch(function () {
+          show(g.title, "This browser can't run PSP games. Try a recent Chrome, Edge or Firefox on a computer.");
+        });
+        return false;
+      }
+
       if (!id) { show("No game selected."); return; }
       FrutiLibrary.load().then(function (games) {
         var g = games.filter(function (x) { return x.id === id; })[0];
@@ -80,6 +104,7 @@
         if (g.image) { var l = document.createElement("link"); l.rel = "icon"; l.href = g.image; document.head.appendChild(l); }
         if (g.unsupported) { show(g.title, g.consoleFolder + " games can't be played yet."); return; }
         if (g.problem) { show(g.title, g.problem); return; }
+        if (g.console === "psp" && !pspReady(g)) return;
 
         stage.innerHTML = '<div class="msg"><b></b><div class="bar"><i></i></div><span></span></div>';
         stage.querySelector("b").textContent = g.title;

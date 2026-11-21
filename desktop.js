@@ -60,8 +60,7 @@
 
   // ---------- Platforms ----------
   const PLAT = {};
-  CONSOLES.forEach((c) => { PLAT[c.id] = { name: c.name, tag: c.tag, engine: "EmulatorJS", icon: ICON.pad }; });
-  PLAT.psp = { name: "PlayStation Portable", tag: "PSP", engine: "Not supported yet", icon: ICON.pad };
+  CONSOLES.forEach((c) => { PLAT[c.id] = { name: c.name, tag: c.tag, engine: c.id === "psp" ? "EmulatorJS (PPSSPP)" : "EmulatorJS", icon: ICON.pad }; });
   const platOf = (g) => g.console || "n64";
   const mb = (n) => n >= 1073741824 ? (n / 1073741824).toFixed(1) + " GB" : Math.max(0.1, n / 1048576).toFixed(n < 10485760 ? 1 : 0) + " MB";
   const badge = (g) => { const p = PLAT[platOf(g)]; return `<span class="badge">${p.icon}${esc(p.tag)}</span>`; };
@@ -246,7 +245,8 @@
             <h3>Description</h3>
             <p>${esc(g.desc || "No description yet.")}</p>
             <h3>How to play</h3>
-            <p>${blocked || "Opens in a new tab, downloads the game and runs it through EmulatorJS. Keyboard or a gamepad both work. Press F11 for fullscreen."}</p>
+            <p>${blocked || "Opens in a new tab, downloads the game and runs it through EmulatorJS. Keyboard or a gamepad both work. Press F11 for fullscreen."
+              + (g.console === "psp" ? " PSP games only play on the website (GitHub Pages), need a computer with a recent browser, and take a while to load the first time." : "")}</p>
           </div>
           <aside class="d-info">
             <dl>
