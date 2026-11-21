@@ -240,12 +240,6 @@ kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 4
 .pg-inner { max-width: 960px; padding: 28px 32px 48px; }
 .pg-title { margin: 0 0 6px; font: 30px "Rostex", "Segoe UI", sans-serif; }
 .pg-sub { color: var(--muted); margin: 0 0 20px; }
-.emu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-.emu-card { display: flex; align-items: center; gap: 14px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
-.emu-card:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
-.emu-tag { width: 54px; height: 54px; border-radius: 8px; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); flex: none; }
-.emu-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.emu-txt small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 18px 18px; margin-bottom: 14px; }
 .set-card > h3 { margin-top: 14px; }

@@ -48,7 +48,6 @@
   const ICON = {
     library: `<svg viewBox="0 0 24 24"><path d="M4 4h4v16H4zM10 4h4v16h-4z"/><path d="m16 5 3.8-1 3 15.4-3.8 1z"/></svg>`,
     fav: `<svg viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg>`,
-    emulators: `<svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15.5A3 3 0 0 0 7.2 18l1.3-2h7l1.3 2a3 3 0 0 0 5.2-2.5l-.7-6.9A4 4 0 0 0 17.3 5z"/></svg>`,
     stats: `<svg viewBox="0 0 24 24"><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>`,
     settings: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`,
     pad: `<svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6L2 15.5A3 3 0 0 0 7.2 18l1.3-2h7l1.3 2a3 3 0 0 0 5.2-2.5l-.7-6.9A4 4 0 0 0 17.3 5z"/></svg>`,
@@ -67,7 +66,6 @@
   // ---------- Page buttons (top right) ----------
   const PAGES = [
     ["library", "Library", ICON.library],
-    ["emulators", "Emulators", ICON.emulators],
     ["stats", "Statistics", ICON.stats],
     ["settings", "Settings", ICON.settings],
   ];
@@ -131,7 +129,7 @@
     renderDetails();
   }
 
-  const emptyMsg = () => h("div", "empty", games.length ? "No games match. <button class='link' data-clear>Clear filters</button>" : "No ROM games yet. Add some with rom/add-rom.py, or open Emulators to play a ROM from your computer.");
+  const emptyMsg = () => h("div", "empty", games.length ? "No games match. <button class='link' data-clear>Clear filters</button>" : "No games yet.");
 
   function groupHead(name, count, wrap) {
     const key = ui.group + ":" + name;
@@ -341,20 +339,6 @@
     select(order[Math.min(order.length - 1, Math.max(0, i + step))], true);
   });
 
-  // ---------- Emulators ----------
-  function renderEmulators() {
-    const box = $("#emu-grid"); box.innerHTML = "";
-    CONSOLES.forEach((c) => {
-      const n = games.filter((g) => platOf(g) === c.id).length;
-      const card = h("div", "emu-card", `
-        <div class="emu-tag">${esc(c.tag)}</div>
-        <div class="emu-txt"><b>${esc(c.name)}</b><small>${esc(c.ext.join(" "))} · .zip · .7z</small><small>${n} game${n === 1 ? "" : "s"} in library</small></div>
-        <button class="btn-play sm">${ICON.play}<span>Play a ROM</span></button>`);
-      $("button", card).onclick = () => window.open(abs(`emu.html?v=${VERSION}&system=${c.id}`), "_blank");
-      box.appendChild(card);
-    });
-  }
-
   // ---------- Statistics ----------
   function renderStats() {
     const total = Object.values(times).reduce((a, b) => a + b, 0);
@@ -412,8 +396,7 @@
 
   // ---------- Init ----------
   applyAccent();
-  renderEmulators();
-  showPage(["library", "emulators", "stats", "settings"].includes(ui.page) ? ui.page : "library");
+  showPage(["library", "stats", "settings"].includes(ui.page) ? ui.page : "library");
   renderLibrary();
   clock(); setInterval(clock, 10000);
 })();

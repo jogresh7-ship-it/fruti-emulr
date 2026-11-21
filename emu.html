@@ -23,7 +23,6 @@
   <script>
     // Console player (EmulatorJS).
     //   emu.html?system=<console>&game=<rom id>  -> plays rom/<console>/<rom id>.js (ROM embedded as base64)
-    //   emu.html?system=<console>                -> lets you pick a ROM file from your computer
     (function () {
       var stage = document.getElementById("game");
       var q = new URLSearchParams(location.search);
@@ -81,6 +80,8 @@
       if (id) {
         if (!/^[\w-]+$/.test(id)) { stage.innerHTML = '<div class="msg">No game selected.</div>'; return; }
         var g = (window.FRUTI_GAMES || []).filter(function (x) { return x.rom === id && (x.console || "n64") === sys.id; })[0];
+        // Only games added to games.js can be played
+        if (!g) { stage.innerHTML = '<div class="msg">This game is not in the library.</div>'; return; }
         if (g && g.image) { var l = document.createElement("link"); l.rel = "icon"; l.href = g.image; document.head.appendChild(l); }
         stage.innerHTML = '<div class="msg">Loading…</div>';
         loadScript("rom/" + sys.id + "/" + id + ".js").then(function () {
@@ -91,17 +92,7 @@
           stage.innerHTML = '<div class="msg">This game failed to load.</div>';
         });
       } else {
-        document.title = sys.name + " - Fruti";
-        stage.innerHTML =
-          '<div class="pick"><div class="pick-box">' +
-          '<h1>Play a ' + sys.name + ' game</h1>' +
-          '<p>Choose a ' + sys.name + ' ROM from your computer (' + sys.ext.concat([".zip", ".7z"]).join(", ") + '). Any size works. It stays on your computer and is not uploaded anywhere.</p>' +
-          '<label>Choose ROM file<input type="file" id="rom" accept="' + sys.ext.concat([".zip", ".7z"]).join(",") + '"></label>' +
-          '</div></div>';
-        document.getElementById("rom").onchange = function (e) {
-          var f = e.target.files[0];
-          if (f) start(f, f.name.replace(/\.[^.]+$/, ""));
-        };
+        stage.innerHTML = '<div class="msg">No game selected.</div>';
       }
     })();
   </script>

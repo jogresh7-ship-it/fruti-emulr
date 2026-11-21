@@ -26,7 +26,7 @@ Consoles: Nintendo DS, Nintendo 64, Game Boy Advance, Game Boy / Color, SNES, NE
 
    `image` is an optional cover picture; put it in `rom/` too.
 
-To play a ROM without adding it, open **Emulators** (top right) and pick **Play a ROM**. The file stays on your computer.
+Only games added this way can be played. Visitors can't load or run their own ROMs.
 
 ### Why ROMs are `.js` files
 
@@ -35,7 +35,7 @@ Browsers block `fetch()` for pages opened from disk (`file://`), so plain ROM fi
 ## Features
 
 - Toolbar with search, favorites filter, group by (genre / console / none), sort, console filter, random game, and a "Filter Active" chip that clears filters
-- Page buttons at the top right: Library, Emulators, Statistics, Settings
+- Page buttons at the top right: Library, Statistics, Settings
 - Three views: **Details** (grouped game list + a big details page with Play button and time played), **Grid** (cover cards with a console badge) and **List** (sortable table)
 - Keyboard: `/` search, arrow keys to select, `Enter` to play, `F` to favorite; double-click a game to play it
 - Settings: accent color, grid cover size, background art and grid titles
