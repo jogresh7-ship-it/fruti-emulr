@@ -802,7 +802,8 @@ class EmulatorJS {
                 }
 
                 let fileNames = [];
-                this.checkCompression(new Uint8Array(data), this.localization("Decompress Game Data"), (fileName, fileData) => {
+                // Fruti: new Uint8Array(aUint8Array) copies the whole game; reuse it when it already is one
+                this.checkCompression(data instanceof Uint8Array ? data : new Uint8Array(data), this.localization("Decompress Game Data"), (fileName, fileData) => {
                     if (fileName.includes("/")) {
                         const paths = fileName.split("/");
                         let cp = "";
@@ -818,11 +819,12 @@ class EmulatorJS {
                         this.gameManager.FS.mkdir(fileName);
                         return;
                     }
+                    // Fruti: canOwn = keep this data instead of copying it (saves a full copy of the game in memory)
                     if (fileName === "!!notCompressedData") {
-                        this.gameManager.FS.writeFile(altName, fileData);
+                        this.gameManager.FS.writeFile(altName, fileData, { canOwn: true });
                         fileNames.push(altName);
                     } else {
-                        this.gameManager.FS.writeFile(`/${fileName}`, fileData);
+                        this.gameManager.FS.writeFile(`/${fileName}`, fileData, { canOwn: true });
                         fileNames.push(fileName);
                     }
                 }).then(() => {

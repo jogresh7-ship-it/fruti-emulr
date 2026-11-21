@@ -1,7 +1,7 @@
 // Fruti - ROM game launcher: consoles in the sidebar, game posters in the middle, click to play.
 (() => {
   "use strict";
-  const VERSION = "13";
+  const VERSION = "14";
   // Without its files (e.g. served from a blob: URL), open the player from GitHub Pages.
   const SITE = "https://jogresh7-ship-it.github.io/fruti-emulr/";
   const BASE = /^(https?|file):$/.test(location.protocol) ? "" : SITE;

@@ -154,7 +154,68 @@
       }).catch(function () { return null; });
     },
     // Downloads a game (joining its parts) as a File. onProgress(loadedBytes, totalBytes)
+    // Downloads a game as { data: Uint8Array, name } - the parts go straight into one block of memory,
+    // which the emulator then uses as is (no extra copies: big PSP games need that on computers with
+    // little memory). onProgress(loadedBytes, totalBytes)
     download: function (g, onProgress) {
+      var total = g.size || 0, buf;
+      try { buf = new Uint8Array(total); } catch (e) { return downloadAsFile(g, onProgress).then(fileToBytes); }
+      var offset = 0, starts = [];
+      return g.urls.reduce(function (p, u, i) {
+        return p.then(function () {
+          starts.push(offset);
+          return fetch(u).then(function (r) {
+            if (!r.ok) throw new Error("Could not download " + decodeURIComponent(u.split("/").pop()) + " (" + r.status + ")");
+            var reader = r.body.getReader();
+            var pump = function () {
+              return reader.read().then(function (x) {
+                if (x.done) {
+                  // Stop early (before downloading everything) when parts are missing
+                  if (i === 0) { var m = missingParts(g, buf.subarray(0, Math.min(4096, offset))); if (m) throw new Error(m); }
+                  return;
+                }
+                if (offset + x.value.length > buf.length) throw new Error("size-mismatch");
+                buf.set(x.value, offset); offset += x.value.length; onProgress && onProgress(offset, total);
+                return pump();
+              });
+            };
+            return pump();
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        if (offset !== buf.length) throw new Error("size-mismatch");
+        // Parts that are each their own zip need unpacking first: do that the old way (rare)
+        var check = g.urls.length < 2 ? Promise.resolve(false) : Promise.all([
+          zipEntries(new Blob([buf.subarray(0, starts[1])])), zipEntries(new Blob([buf.subarray(starts[1], starts[2] || buf.length)]))
+        ]).then(function (z) { return !!(z[0] && z[1]); });
+        return check.then(function (separateZips) {
+          if (!separateZips) return { data: buf, name: nameFor(g.fileName, buf) };
+          var blobs = starts.map(function (s, k) { return new Blob([buf.subarray(s, starts[k + 1] || buf.length)]); });
+          buf = null;
+          return joinParts(blobs, g.fileName).then(nameByContent).then(fileToBytes);
+        });
+      }).catch(function (e) {
+        if (e && e.message === "size-mismatch") { buf = null; return downloadAsFile(g, onProgress).then(fileToBytes); }
+        throw e;
+      });
+    }
+  };
+
+  // The extension the game really has (7z parts are often named .zip)
+  function nameFor(name, b) {
+    var ext = b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf ? ".7z"
+      : b[0] === 0x50 && b[1] === 0x4b && b[2] === 3 && b[3] === 4 ? ".zip"
+      : b[0] === 0x52 && b[1] === 0x61 && b[2] === 0x72 && b[3] === 0x21 ? ".rar"
+      : b[0] === 0x43 && b[1] === 0x49 && b[2] === 0x53 && b[3] === 0x4f ? ".cso" : "";   // CISO = compressed PSP ISO
+    if (!ext || name.toLowerCase().slice(-ext.length) === ext) return name;
+    return name.replace(/\.(zip|7z|rar|cso)$/i, "") + ext;
+  }
+  function fileToBytes(file) {
+    return file.arrayBuffer().then(function (a) { return { data: new Uint8Array(a), name: file.name }; });
+  }
+
+  // The old way: each part as a Blob, joined into a File (uses more memory)
+  function downloadAsFile(g, onProgress) {
       var total = g.size || 0, done = 0, blobs = [];
       return g.urls.reduce(function (p, u) {
         return p.then(function () {
@@ -179,8 +240,7 @@
           });
         });
       }, Promise.resolve()).then(function () { return joinParts(blobs, g.fileName); }).then(nameByContent);
-    }
-  };
+  }
 
   // ---------- Missing parts ----------
   // n bytes of a file starting at `from`, without downloading all of it
