@@ -264,6 +264,10 @@
     $(".d-bg", box).style.backgroundImage = bg(g);
     $(".d-icon", box).style.backgroundImage = bg(g);
     $("#d-play").onclick = () => play(g);
+    if (!blocked && g.files.length > 1 && g.partsChecked === undefined) {
+      g.partsChecked = null;
+      FrutiLibrary.checkParts(g).then((m) => { g.partsChecked = m; if (m) { g.problem = m; if (ui.sel === g.id) renderDetails(); } });
+    }
     $("#d-fav").onclick = () => toggleFav(g.id);
     $$(".chip", box).forEach((c) => c.onclick = () => { $("#search").value = c.dataset.tag; renderLibrary(); });
     box.scrollTop = 0;

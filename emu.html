@@ -104,8 +104,17 @@
         if (g.image) { var l = document.createElement("link"); l.rel = "icon"; l.href = g.image; document.head.appendChild(l); }
         if (g.unsupported) { show(g.title, g.consoleFolder + " games can't be played yet."); return; }
         if (g.problem) { show(g.title, g.problem); return; }
-        if (g.console === "psp" && !pspReady(g)) return;
+        show(g.title, "Checking the game files…");
+        FrutiLibrary.checkParts(g).then(function (missing) {
+          if (missing) { show(g.title, missing); return; }
+          if (g.console === "psp" && !pspReady(g)) return;
+          downloadAndStart(g);
+        });
+      }).catch(function (e) {
+        show("Couldn't load the game list from GitHub.", e.message);
+      });
 
+      function downloadAndStart(g) {
         stage.innerHTML = '<div class="msg"><b></b><div class="bar"><i></i></div><span></span></div>';
         stage.querySelector("b").textContent = g.title;
         var bar = stage.querySelector(".bar i"), txt = stage.querySelector("span");
@@ -115,10 +124,8 @@
           if (total) bar.style.width = Math.min(100, done / total * 100) + "%";
           txt.textContent = "Downloading" + parts + " " + mb(done) + (total ? " of " + mb(total) : "");
         }).then(function (file) { start(file, g); })
-          .catch(function (e) { show(g.title, "Download failed. " + e.message); });
-      }).catch(function (e) {
-        show("Couldn't load the game list from GitHub.", e.message);
-      });
+          .catch(function (e) { show(g.title, /^Only \d|incomplete/.test(e.message) ? e.message : "Download failed. " + e.message); });
+      }
     })();
   </script>
 </body>

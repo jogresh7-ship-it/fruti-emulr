@@ -132,18 +132,29 @@
     url: url,
     // -> Promise of the game list
     load: function (force) { return fetchTree(force).then(build); },
+    // -> Promise of a message when parts are missing, else null. Reads only the start of the first part.
+    checkParts: function (g) {
+      if (g.files.length < 2 && !/\.7z$/i.test(g.fileName)) return Promise.resolve(null);
+      return head(g.urls[0], 32).then(function (b) { return missingParts(g, b); }).catch(function () { return null; });
+    },
     // Downloads a game (joining its parts) as a File. onProgress(loadedBytes, totalBytes)
     download: function (g, onProgress) {
       var total = g.size || 0, done = 0, blobs = [];
       return g.urls.reduce(function (p, u) {
         return p.then(function () {
+          var first = !blobs.length;
           return fetch(u).then(function (r) {
             if (!r.ok) throw new Error("Could not download " + decodeURIComponent(u.split("/").pop()) + " (" + r.status + ")");
             if (!r.body || !r.body.getReader) return r.blob().then(function (b) { done += b.size; onProgress && onProgress(done, total); blobs.push(b); });
             var reader = r.body.getReader(), chunks = [];
             var pump = function () {
               return reader.read().then(function (x) {
-                if (x.done) { blobs.push(new Blob(chunks)); return; }
+                if (x.done) {
+                  blobs.push(new Blob(chunks));
+                  // Stop early (before downloading everything) when parts are missing
+                  if (first) return bytes(blobs[0], 0, 32).then(function (b) { var m = missingParts(g, b); if (m) throw new Error(m); });
+                  return;
+                }
                 chunks.push(x.value); done += x.value.length; onProgress && onProgress(done, total);
                 return pump();
               });
@@ -154,6 +165,40 @@
       }, Promise.resolve()).then(function () { return joinParts(blobs, g.fileName); }).then(nameByContent);
     }
   };
+
+  // ---------- Missing parts ----------
+  // First n bytes of a file, without downloading all of it
+  function head(u, n) {
+    return fetch(u, { headers: { Range: "bytes=0-" + (n - 1) } }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      var reader = r.body.getReader(), got = new Uint8Array(0);
+      var more = function () {
+        return reader.read().then(function (x) {
+          if (!x.done) { var a = new Uint8Array(got.length + x.value.length); a.set(got); a.set(x.value, got.length); got = a; }
+          if (x.done || got.length >= n) { reader.cancel().catch(function () {}); return got.subarray(0, n); }
+          return more();
+        });
+      };
+      return more();
+    });
+  }
+  // A 7z archive's first 32 bytes say how big the whole archive is; compare with what's uploaded.
+  function missingParts(g, b) {
+    if (!b || b.length < 32 || !(b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf && b[4] === 0x27 && b[5] === 0x1c)) return null;
+    var u64 = function (i) { return u32(b, i) + u32(b, i + 4) * 4294967296; };
+    var total = 32 + u64(12) + u64(20);
+    if (g.size >= total) return null;
+    var have = g.files.length;
+    if (have < 2) return "The game file is incomplete: " + mb(g.size) + " of " + mb(total) + " uploaded. Upload it again.";
+    var need = Math.ceil(total / g.files[0].size);
+    var last = g.files[have - 1].path.split("/").pop();
+    var m = /(\d+)(?!.*\d)/.exec(last), pad = m ? m[1].length : 0;
+    var num = function (n) { var s = String(n); while (s.length < pad) s = "0" + s; return s; };
+    var list = need > have + 1 ? "parts " + num(have + 1) + " to " + num(need) : "part " + num(need);
+    return "Only " + have + " of " + need + " parts are uploaded. Upload " + list +
+      " to rom/" + g.folder + "/ on GitHub, then try again.";
+  }
+  var mb = function (n) { return Math.round(n / 1048576) + " MB"; };
 
   // ---------- Joining parts ----------
   var u32 = function (b, i) { return (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0; };
