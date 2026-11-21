@@ -149,7 +149,7 @@
       if (g.files.length < 2 && !/\.(7z|zip)$/i.test(g.fileName)) return Promise.resolve(null);
       return bytesAt(g.urls[0], 0, 32).then(function (b) {
         if (isCso(b)) return csoMissing(g, b);
-        return missingParts(g, b) || tooBigToUnpack(g, b);
+        return missingParts(g, b);
       }).catch(function () { return null; });
     },
     // Downloads a game (joining its parts) as a File. onProgress(loadedBytes, totalBytes)
@@ -209,14 +209,6 @@
       var end = (u32(e, 0) & 0x7fffffff) * Math.pow(2, align);
       return end > g.size ? partsMessage(g, end) : null;
     });
-  }
-  // PSP games packed in a .7z / .zip are unpacked inside the browser, which runs out of
-  // memory for big ones; those need to be uploaded as .cso (made with the Game Splitter).
-  function tooBigToUnpack(g, b) {
-    var archive = (b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf) || (b[0] === 0x50 && b[1] === 0x4b);
-    if (g.console !== "psp" || !archive || g.size <= 600 * 1048576) return null;
-    return "This PSP game is too big to unpack in the browser (" + mb(g.size) + " packed). Unpack it on your computer to get the .iso, " +
-      "turn that into .cso parts with the Game Splitter (button at the top of the library), and upload those instead of these parts.";
   }
   // A 7z archive's first 32 bytes say how big the whole archive is; compare with what's uploaded.
   function missingParts(g, b) {

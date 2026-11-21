@@ -179,8 +179,8 @@ onmessage = function (e) {
       $("#csoRow").hidden = !(psp && ext === "iso");
       var w = $("#archiveWarn"), msg = "";
       if (file.archive === "rar") msg = "This is a .rar file. The launcher can't open those: unpack it on your computer first (right-click > Extract), then drop the game file here.";
-      else if (file.archive && psp && file.size > 300 * MB) msg = "This is a big PSP game inside a ." + file.archive + " file. The browser can't unpack PSP games this big. " +
-        "Unpack it on your computer first (right-click > Extract All, or 7-Zip > Extract Here), then drop the .iso file here; it will be shrunk to .cso.";
+      else if (file.archive && psp && file.size > 300 * MB) msg = "Tip: this is a big PSP game inside a ." + file.archive + " file. Splitting it as it is works fine. " +
+        "If the game ever fails to load on a computer (not enough memory to unpack it), unpack it and drop the .iso here instead: it will be shrunk to .cso, which needs much less memory.";
       w.textContent = msg; w.hidden = !msg;
       $("#folderNote").textContent = canPickFolder
         ? "You'll choose a folder on your computer; a folder named after the game is made inside it, with the parts."

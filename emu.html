@@ -91,9 +91,9 @@
           var emu = window.EJS_emulator;
           if (shown || (emu && emu.started)) return;
           shown = true;
-          var big = g.console === "psp" ? " PSP games this big need to be uploaded as .cso parts: unpack the game on your computer, " +
-            "then use the Game Splitter (button at the top of the library) on the .iso." : "";
-          show(g.title, "The game couldn't be loaded. It may be too big to unpack in the browser, or a file may be damaged." + big);
+          var big = g.console === "psp" ? " Try again, or close other tabs first. If it keeps failing, the game may be too big for this " +
+            "computer's browser to unpack: the Game Splitter can turn the .iso into .cso parts, which need much less memory." : "";
+          show(g.title, "The game couldn't be loaded. The browser may have run out of memory while unpacking it, or a file may be damaged." + big);
           document.body.classList.remove("playing");
         };
         addEventListener("error", function (e) { if (/abort/i.test(String(e.message || ""))) fail(); });
