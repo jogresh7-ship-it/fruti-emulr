@@ -17,7 +17,7 @@
   "use strict";
   var REPO = "jogresh7-ship-it/fruti-emulr";   // used when the page isn't on <owner>.github.io/<repo>/
   var BRANCH = "main";
-  var CACHE_MS = 60 * 1000;                    // GitHub allows 60 lookups an hour per visitor
+  var CACHE_MS = 3 * 60 * 1000;                // GitHub allows 60 lookups an hour per visitor (the ↻ button skips this)
 
   // Folder name (any letter case) -> console id from consoles.js
   var CONSOLE_FOLDERS = {
@@ -76,9 +76,32 @@
       writeCache({ at: Date.now(), files: files });
       return files;
     }).catch(function (e) {
-      if (c) return c.files;                    // use the last list we had
-      throw e;
+      // GitHub's hourly limit reached (or offline): use rom/files.json, the list a GitHub Action keeps
+      // up to date in the repo. An old saved list is the last resort: it can be from before an upload
+      // finished, which would make complete games look like they're missing parts.
+      return fileList().catch(function () {
+        if (c) return c.files;
+        throw e;
+      });
     });
+  }
+  function fileList() {
+    // Straight from GitHub's file server: it has a new list sooner than the GitHub Pages site
+    var raw = "https://raw.githubusercontent.com/" + R.owner + "/" + R.name + "/" + BRANCH + "/rom/files.json";
+    return fetch(raw, { cache: "no-store" }).then(function (r) { return r.ok ? r : getFile(url("rom/files.json"), { cache: "no-store" }); }).then(function (r) {
+      if (!r.ok) throw new Error("no file list");
+      return r.json();
+    }).then(function (j) {
+      var files = (j.files || []).filter(function (f) { return f && typeof f.path === "string" && f.path.indexOf("rom/") === 0; })
+        .map(function (f) { return { path: f.path, size: +f.size || 0 }; });
+      if (!files.length) throw new Error("empty file list");
+      return files;
+    });
+  }
+
+  // "DS/Welcome to Animal Crossing_ Wild World" and "ds/welcome to animal crossing: wild world." match
+  function coverKey(con, name) {
+    return (con + "/" + String(name).replace(/_ /g, ": ").replace(/[\s.:_-]+$/, "")).toLowerCase();
   }
 
   var natural = function (a, b) { return a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: "base" }); };
@@ -100,7 +123,7 @@
       if (!con) return;
       // A picture loose in rom/<Console>/ is the cover of the loose game with the same name:
       // rom/DS/My Game.jpg -> rom/DS/My Game.zip
-      if (loose && IMAGE.test(f.path)) { looseCovers[(parts[1] + "/" + parts[2].replace(/\.[^.]+$/, "")).toLowerCase()] = url(f.path); return; }
+      if (loose && IMAGE.test(f.path)) { looseCovers[coverKey(parts[1], parts[2].replace(/\.[^.]+$/, ""))] = url(f.path); return; }
       var folder = parts[1] + "/" + parts[2];
       var g = byGame[folder] || (byGame[folder] = {
         id: "rom/" + folder,
@@ -120,7 +143,7 @@
       g.size += f.size;
     });
     var games = Object.keys(byGame).map(function (k) { return byGame[k]; }).filter(function (g) { return g.files.length; });
-    games.forEach(function (g) { if (g.loose && !g.image) g.image = looseCovers[(g.consoleFolder + "/" + g.title).toLowerCase()]; });
+    games.forEach(function (g) { if (g.loose && !g.image) g.image = looseCovers[coverKey(g.consoleFolder, g.title)]; });
     games.forEach(function (g) {
       // The game is the biggest set of files that belong together (one file, or its parts);
       // anything else in the folder (notes, placeholder files, ...) is ignored.
@@ -145,6 +168,8 @@
       ["title", "tags", "desc", "color"].forEach(function (k) { if (x[k]) g[k] = x[k]; });
       if (x.image) g.image = /^[a-z]+:/i.test(x.image) ? x.image : url(x.image);
     });
+    // A cover named after the title shown in the library: rom/DS/Animal Crossing DS.jpeg
+    games.forEach(function (g) { if (g.loose && !g.image) g.image = looseCovers[coverKey(g.consoleFolder, g.title)]; });
     return games.sort(function (a, b) { return a.title.localeCompare(b.title); });
   }
 
