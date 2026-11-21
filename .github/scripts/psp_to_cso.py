@@ -161,6 +161,9 @@ def convert(folder):
 
 if __name__ == '__main__':
     root = sys.argv[1] if len(sys.argv) > 1 else '.'
+    only = os.environ.get('ONLY_GAME', '').strip().strip('/')
     for folder in sorted(glob.glob(os.path.join(root, 'rom', 'PSP', '*', ''))):
+        if only and os.path.basename(os.path.normpath(folder)) != only:
+            continue
         if convert(folder):
             print(os.path.relpath(folder, root).rstrip('/'))

@@ -7,6 +7,11 @@ name: Make big PSP games playable (.cso)
 
 on:
   workflow_dispatch:
+    inputs:
+      game:
+        description: "Only this game folder inside rom/PSP/ (leave empty for every big PSP game)"
+        required: false
+        default: ""
 
 permissions:
   contents: write   # commit the .cso parts
@@ -32,6 +37,8 @@ jobs:
 
       - name: Convert big PSP games to .cso
         id: convert
+        env:
+          ONLY_GAME: ${{ inputs.game }}
         run: |
           python3 .github/scripts/psp_to_cso.py . > converted.txt
           cat converted.txt
