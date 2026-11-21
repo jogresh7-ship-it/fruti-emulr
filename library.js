@@ -5,7 +5,8 @@
 //   <Console>    a folder name from CONSOLE_FOLDERS below, e.g. PS, DS, GBA
 //   <Game Name>  a folder per game. A single, complete game file may also sit directly in
 //                rom/<Console>/ (its file name is the title); parts must be in a game folder.
-//   parts        My Game.part001.zip, My Game.part002.zip, ... (or My Game.zip.001, .002, ...)
+//   files        .zip and .7z archives or plain ROMs (.nds, .gba, ...)
+//   parts        My Game.part001.zip, My Game.part002.zip, ... (or My Game.7z.001, .002, ...)
 //                are downloaded in order and joined. Works both for one file cut into pieces
 //                and for parts that are each their own zip.
 //   cover        any .jpg / .png / .webp in the game's folder is used as its cover
@@ -150,7 +151,7 @@
             return pump();
           });
         });
-      }, Promise.resolve()).then(function () { return joinParts(blobs, g.fileName); });
+      }, Promise.resolve()).then(function () { return joinParts(blobs, g.fileName); }).then(nameByContent);
     }
   };
 
@@ -192,6 +193,17 @@
       if (e.method === 0) return data;
       if (e.method !== 8 || typeof DecompressionStream === "undefined") throw new Error("A part uses a zip format this browser can't open.");
       return new Response(data.stream().pipeThrough(new DecompressionStream("deflate-raw"))).blob();
+    });
+  }
+
+  // Give the file the extension of what it really is (7z parts are often named .zip)
+  function nameByContent(file) {
+    return bytes(file, 0, 8).then(function (b) {
+      var ext = b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf ? ".7z"
+        : b[0] === 0x50 && b[1] === 0x4b && b[2] === 3 && b[3] === 4 ? ".zip"
+        : b[0] === 0x52 && b[1] === 0x61 && b[2] === 0x72 && b[3] === 0x21 ? ".rar" : "";
+      if (!ext || file.name.toLowerCase().slice(-ext.length) === ext) return file;
+      return new File([file], file.name.replace(/\.(zip|7z|rar)$/i, "") + ext);
     });
   }
 
