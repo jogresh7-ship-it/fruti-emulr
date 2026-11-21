@@ -148,7 +148,7 @@
     // -> Promise of a message when parts are missing, else null. Reads only the start of the first part.
     checkParts: function (g) {
       if (g.files.length < 2 && !/\.(7z|zip)$/i.test(g.fileName)) return Promise.resolve(null);
-      return bytesAt(g.urls[0], 0, 32).then(function (b) {
+      return bytesAt(g.urls[0], 0, 4096).then(function (b) {
         if (isCso(b)) return csoMissing(g, b);
         return missingParts(g, b);
       }).catch(function () { return null; });
@@ -168,7 +168,7 @@
                 if (x.done) {
                   blobs.push(new Blob(chunks));
                   // Stop early (before downloading everything) when parts are missing
-                  if (first) return bytes(blobs[0], 0, 32).then(function (b) { var m = missingParts(g, b); if (m) throw new Error(m); });
+                  if (first) return bytes(blobs[0], 0, 4096).then(function (b) { var m = missingParts(g, b); if (m) throw new Error(m); });
                   return;
                 }
                 chunks.push(x.value); done += x.value.length; onProgress && onProgress(done, total);
@@ -213,22 +213,45 @@
   }
   // A 7z archive's first 32 bytes say how big the whole archive is; compare with what's uploaded.
   function missingParts(g, b) {
+    if (b && b.length >= 30 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 3 && b[3] === 4) return zipMissing(g, b);
     if (!b || b.length < 32 || !(b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf && b[4] === 0x27 && b[5] === 0x1c)) return null;
     var u64 = function (i) { return u32(b, i) + u32(b, i + 4) * 4294967296; };
     var total = 32 + u64(12) + u64(20);
     return g.size >= total ? null : partsMessage(g, total);
   }
+  // A zip's first entry says how big its packed data is; the whole zip is at least that big.
+  // (A download that stopped early is still a valid-looking zip start, but far too short.)
+  function zipMissing(g, b) {
+    var u64 = function (i) { return u32(b, i) + u32(b, i + 4) * 4294967296; };
+    var flags = b[6] | b[7] << 8, csize = u32(b, 18), usize = u32(b, 22), nameLen = b[26] | b[27] << 8, extraLen = b[28] | b[29] << 8;
+    if (flags & 8) return null;                                  // sizes stored after the data: can't tell
+    if (csize === 0xffffffff || usize === 0xffffffff) {          // zip64: real sizes are in the extra field
+      for (var p = 30 + nameLen, end = Math.min(b.length, p + extraLen); p + 4 <= end;) {
+        var id = b[p] | b[p + 1] << 8, len = b[p + 2] | b[p + 3] << 8;
+        if (id === 1) { var q = p + 4; if (usize === 0xffffffff) q += 8; if (csize === 0xffffffff && q + 8 <= end) csize = u64(q); break; }
+        p += 4 + len;
+      }
+      if (csize === 0xffffffff) return null;
+    }
+    var total = 30 + nameLen + extraLen + csize;
+    return g.size >= total ? null : partsMessage(g, total);
+  }
   function partsMessage(g, total) {
-    var have = g.files.length;
-    if (have < 2) return "The game file is incomplete: " + mb(g.size) + " of " + mb(total) + " uploaded. Upload it again.";
-    var need = Math.ceil(total / g.files[0].size);
-    var last = g.files[have - 1].path.split("/").pop();
-    var m = /(\d+)(?!.*\d)/.exec(last), pad = m ? m[1].length : 0;
+    var have = g.files.length, first = g.files[0].size, lastPart = g.files[have - 1];
+    // A shorter last part is the real end of the file: every part is here, but the game file itself
+    // was cut short (a download that stopped early). Otherwise, parts are missing.
+    if (have < 2 || lastPart.size < first) {
+      return "The game file is incomplete: only " + mb(g.size) + " of " + mb(total) + " is there. The download of this game stopped early, " +
+        "so the file on your computer is incomplete too. Download the game again (the finished file should be about " + mb(total) + "), then upload it again.";
+    }
+    var need = Math.ceil(total / first);
+    var m = /(\d+)(?!.*\d)/.exec(lastPart.path.split("/").pop()), pad = m ? m[1].length : 0;
     var num = function (n) { var s = String(n); while (s.length < pad) s = "0" + s; return s; };
     var list = need > have + 1 ? "parts " + num(have + 1) + " to " + num(need) : "part " + num(need);
     return "Only " + have + " of " + need + " parts are uploaded. Upload " + list +
       " to rom/" + g.folder + "/ on GitHub, then try again.";
   }
+
   var mb = function (n) { return Math.round(n / 1048576) + " MB"; };
 
   // ---------- Joining parts ----------
