@@ -24,6 +24,8 @@
     #back svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
     body.playing #back, body.playing #keysBtn { opacity: 0; pointer-events: none; }
     body.playing.mouse #keysBtn { opacity: 1; pointer-events: auto; }
+    body.touch.playing #back { opacity: .5; pointer-events: auto; padding: 6px 12px 6px 8px; }
+    body.touch #keysBtn, body.touch #keys { display: none !important; }
     #keysBtn { position: fixed; top: 12px; left: 132px; z-index: 10000; padding: 8px 14px; border-radius: 8px; cursor: pointer;
                background: rgba(12,14,18,.8); border: 1px solid rgba(255,255,255,.12); color: #f3f5f8;
                font: 600 14px "Segoe UI", Roboto, Inter, system-ui, sans-serif; transition: opacity .3s; }
@@ -133,7 +135,7 @@
       };
       function setUpControls(g) {
         var rows = CONTROLS[g.console];
-        if (!rows) return;
+        if (!rows || touch) return;
         var panel = document.getElementById("keys"), btn = document.getElementById("keysBtn");
         panel.innerHTML = "<h3>Controls</h3><table></table><p>A gamepad works too. Keys can be changed in the emulator's own menu (the gamepad icon at the bottom of the game).</p>";
         var t = panel.querySelector("table");
@@ -190,6 +192,25 @@
         });
       }
 
+      // Phones and tablets: the emulator shows on-screen buttons by itself
+      var touch = window.matchMedia("(pointer: coarse)").matches;   // finger is the main pointer (not touchscreen laptops)
+      if (touch) document.body.classList.add("touch");
+
+      // PSP on-screen buttons: the emulator's default layout has no L/R and labels them like a
+      // Nintendo pad, so give it a real PSP layout (analog stick + D-pad on the left, like its N64 one)
+      var PSP_TOUCH = [
+        { type: "button", text: "\u25B3", id: "triangle", location: "right", left: 40, bold: true, input_value: 9 },
+        { type: "button", text: "\u25A1", id: "square", location: "right", top: 40, bold: true, input_value: 1 },
+        { type: "button", text: "\u25CB", id: "circle", location: "right", left: 81, top: 40, bold: true, input_value: 8 },
+        { type: "button", text: "\u2715", id: "cross", location: "right", left: 40, top: 80, bold: true, input_value: 0 },
+        { type: "zone", id: "stick", location: "left", left: "50%", top: "100%", joystickInput: true, inputValues: [16, 17, 18, 19] },
+        { type: "zone", id: "dpad", location: "left", left: "50%", top: "0%", joystickInput: false, inputValues: [4, 5, 6, 7] },
+        { type: "button", text: "Start", id: "start", location: "center", left: 60, fontSize: 15, block: true, input_value: 3 },
+        { type: "button", text: "Select", id: "select", location: "center", left: -5, fontSize: 15, block: true, input_value: 2 },
+        { type: "button", text: "L", id: "l", location: "left", left: 3, top: -100, bold: true, block: true, input_value: 10 },
+        { type: "button", text: "R", id: "r", location: "right", right: 3, top: -100, bold: true, block: true, input_value: 11 }
+      ];
+
       // Keep track of the emulator's sound so one click or key press can switch it on
       var audioContexts = [];
       ["AudioContext", "webkitAudioContext"].forEach(function (name) {
@@ -210,8 +231,8 @@
           setTimeout(function () {
             if (!audioContexts.some(function (c) { return c.state === "suspended"; })) return;
             var tap = document.createElement("div"); tap.id = "tap";
-            tap.innerHTML = '<div class="big"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>Click to play</div><small></small>';
-            tap.querySelector("small").textContent = g.title + " is ready. Your browser needs one click (or any key) to turn on the sound.";
+            tap.innerHTML = '<div class="big"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>' + (touch ? "Tap to play" : "Click to play") + '</div><small></small>';
+            tap.querySelector("small").textContent = g.title + " is ready. Your browser needs one " + (touch ? "tap" : "click (or any key)") + " to turn on the sound.";
             document.body.appendChild(tap);
             var go = function () { soundOn(); tap.remove(); removeEventListener("keydown", go, true); };
             tap.addEventListener("pointerdown", go);
@@ -236,6 +257,7 @@
         window.EJS_DEBUG_XX = true;             // load the non-minified scripts we ship
         window.EJS_startOnLoaded = true;
         window.EJS_threads = g.console === "psp"; // PSP (PPSSPP) needs threads; sw.js makes them possible
+        if (g.console === "psp") window.EJS_VirtualGamepadSettings = PSP_TOUCH;
         window.EJS_color = "#29b6f6";
         loadScript("emulatorjs/data/loader.js");
         // Once the emulator has its own copy of the game, let the downloaded copy go (frees memory)
