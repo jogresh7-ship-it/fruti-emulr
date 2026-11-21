@@ -46,18 +46,10 @@ The game list comes from GitHub, so the launcher needs internet, also when you d
 
 Games run through [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3, bundled in `emulatorjs/` (GPL-3.0). PSP games use its [PPSSPP](https://github.com/EmulatorJS/ppsspp) core (GPL-2.0 or later).
 
-## Game Splitter
+## Big games and sound
 
-Open **Game Splitter** (top of the library, or `splitter/`) to cut a game into parts for GitHub:
-
-1. Drop the game file on the page. The console is picked from the file (a `.iso` is checked for "PSP GAME").
-2. Choose the part size: **25 MB** for the GitHub website, up to **95 MB** for GitHub Desktop or git (GitHub's limit is 100 MB per file).
-3. Click **Make parts**. In Chrome or Edge you pick a folder and the parts are saved in a folder named after the game; other browsers download the parts one by one.
-4. Upload that folder to `rom/<Console>/` on GitHub.
-
-**Big PSP games:** big `.7z` / `.zip` PSP games are unpacked inside the browser, which needs a lot of memory; if a game fails to load on a computer, unpack it there to get the `.iso` and drop the `.iso` on the splitter: it's shrunk to **`.cso`**, which the PSP emulator reads directly without unpacking. The file never leaves your computer. Compression uses [fflate](https://github.com/101arrowz/fflate) (MIT), bundled inside the page. The splitter is one file, `splitter/index.html`: download it to use it straight from your computer, even offline.
-
-**Sound:** browsers only allow sound after a click or key press on the page, and some games freeze until sound starts, so the player shows **Click to play** when needed.
+- **Big PSP games** packed as `.7z` / `.zip` are unpacked inside the browser, which needs a lot of memory. If one fails to load on a computer, upload it as a `.cso` instead (a compressed PSP ISO the emulator reads without unpacking; `.cso` parts like `My Game.part001.cso` work too).
+- **Sound:** browsers only allow sound after a click or key press on the page, and some games freeze until sound starts, so the player shows **Click to play** when needed.
 
 ## Using it
 

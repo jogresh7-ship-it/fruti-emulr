@@ -92,7 +92,7 @@
           if (shown || (emu && emu.started)) return;
           shown = true;
           var big = g.console === "psp" ? " Try again, or close other tabs first. If it keeps failing, the game may be too big for this " +
-            "computer's browser to unpack: the Game Splitter can turn the .iso into .cso parts, which need much less memory." : "";
+            "computer's browser to unpack: uploading it as .cso parts instead needs much less memory." : "";
           show(g.title, "The game couldn't be loaded. The browser may have run out of memory while unpacking it, or a file may be damaged." + big);
           document.body.classList.remove("playing");
         };
