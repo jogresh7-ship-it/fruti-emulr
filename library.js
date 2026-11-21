@@ -49,6 +49,15 @@
   function url(path) {
     return R.local ? enc(path) : "https://raw.githubusercontent.com/" + R.owner + "/" + R.name + "/" + BRANCH + "/" + enc(path);
   }
+  // GitHub Pages takes a few minutes to publish a new upload, but GitHub itself has it at once:
+  // if the site doesn't have a file yet, get it straight from GitHub.
+  function getFile(u, opts) {
+    return fetch(u, opts).then(function (r) {
+      if (r.ok || r.status !== 404 || !R.local || /^[a-z]+:/i.test(u)) return r;
+      return fetch("https://raw.githubusercontent.com/" + R.owner + "/" + R.name + "/" + BRANCH + "/" + u, opts)
+        .then(function (r2) { return r2.ok ? r2 : r; }, function () { return r; });
+    });
+  }
 
   var KEY = "fruti:tree:" + R.owner + "/" + R.name;
   function readCache() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
@@ -164,7 +173,7 @@
       return g.urls.reduce(function (p, u, i) {
         return p.then(function () {
           starts.push(offset);
-          return fetch(u).then(function (r) {
+          return getFile(u).then(function (r) {
             if (!r.ok) throw new Error("Could not download " + decodeURIComponent(u.split("/").pop()) + " (" + r.status + ")");
             var reader = r.body.getReader();
             var pump = function () {
@@ -220,7 +229,7 @@
       return g.urls.reduce(function (p, u) {
         return p.then(function () {
           var first = !blobs.length;
-          return fetch(u).then(function (r) {
+          return getFile(u).then(function (r) {
             if (!r.ok) throw new Error("Could not download " + decodeURIComponent(u.split("/").pop()) + " (" + r.status + ")");
             if (!r.body || !r.body.getReader) return r.blob().then(function (b) { done += b.size; onProgress && onProgress(done, total); blobs.push(b); });
             var reader = r.body.getReader(), chunks = [];
@@ -245,7 +254,7 @@
   // ---------- Missing parts ----------
   // n bytes of a file starting at `from`, without downloading all of it
   function bytesAt(u, from, n) {
-    return fetch(u, { headers: { Range: "bytes=" + from + "-" + (from + n - 1) } }).then(function (r) {
+    return getFile(u, { headers: { Range: "bytes=" + from + "-" + (from + n - 1) } }).then(function (r) {
       if (!r.ok) throw new Error(r.status);
       var skip = r.status === 206 ? 0 : from;      // server ignored the range: skip to `from` ourselves
       var reader = r.body.getReader(), got = new Uint8Array(0);

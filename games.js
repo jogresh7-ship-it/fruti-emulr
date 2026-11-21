@@ -5,4 +5,5 @@
 // Optional: add details to a game by its folder, for example:
 //   { folder: "PS/Crash Bandicoot", tags: ["Platformer"], desc: "Spin through the islands as Crash.", color: ["#ff8a00", "#2b1a00"] },
 window.FRUTI_GAMES = [
+  { folder: "DS/Welcome to Animal Crossing_ Wild World.zip", title: "Animal Crossing DS" },
 ];

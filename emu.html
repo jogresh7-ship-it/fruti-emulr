@@ -22,7 +22,22 @@
             color: #f3f5f8; font: 600 14px "Segoe UI", Roboto, Inter, system-ui, sans-serif; text-decoration: none; transition: opacity .3s; }
     #back:hover { background: rgba(41,182,246,.9); color: #0d1015; }
     #back svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-    body.playing #back { opacity: 0; pointer-events: none; }
+    body.playing #back, body.playing #keysBtn { opacity: 0; pointer-events: none; }
+    body.playing.mouse #keysBtn { opacity: 1; pointer-events: auto; }
+    #keysBtn { position: fixed; top: 12px; left: 132px; z-index: 10000; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+               background: rgba(12,14,18,.8); border: 1px solid rgba(255,255,255,.12); color: #f3f5f8;
+               font: 600 14px "Segoe UI", Roboto, Inter, system-ui, sans-serif; transition: opacity .3s; }
+    #keysBtn:hover { background: rgba(41,182,246,.9); color: #0d1015; }
+    #keys { position: fixed; top: 58px; left: 12px; z-index: 10001; width: min(360px, calc(100vw - 24px)); padding: 14px 16px 12px;
+            border-radius: 10px; background: rgba(12,14,18,.94); border: 1px solid rgba(255,255,255,.14); color: #f3f5f8;
+            font: 14px/1.4 "Segoe UI", Roboto, Inter, system-ui, sans-serif; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+    #keys h3 { margin: 0 0 8px; font-size: 15px; }
+    #keys table { width: 100%; border-collapse: collapse; }
+    #keys td { padding: 3px 0; }
+    #keys td:last-child { text-align: right; }
+    #keys kbd { display: inline-block; min-width: 22px; padding: 1px 7px; border-radius: 5px; background: #252b36; border: 1px solid #3a4352;
+                font: 600 12px ui-monospace, monospace; text-align: center; }
+    #keys p { margin: 8px 0 0; color: #8d95a5; font-size: 12px; }
     /* Browsers only allow sound after a click or key press on this page. Some games (often PSP)
        wait for sound and freeze without it, so ask for one click when needed. */
     #tap { position: fixed; inset: 0; z-index: 9998; display: grid; place-items: center; align-content: center; gap: 14px;
@@ -37,10 +52,12 @@
 </head>
 <body>
   <a id="back" href="index.html" title="Back to the library"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Library</a>
+  <button id="keysBtn" hidden title="Which keys to press">Controls</button>
+  <div id="keys" hidden></div>
   <div id="game"><div class="msg">Loading…</div></div>
   <script src="consoles.js?v=4"></script>
-  <script src="games.js?v=9"></script>
-  <script src="library.js?v=14"></script>
+  <script src="games.js?v=10"></script>
+  <script src="library.js?v=15"></script>
   <script>
     // Console player (EmulatorJS). emu.html?game=rom/<Console>/<Game Name>
     // Only games found in the repo's rom/ folder can be played.
@@ -99,6 +116,40 @@
         addEventListener("error", function (e) { if (/abort/i.test(String(e.message || ""))) fail(); });
         addEventListener("unhandledrejection", function (e) { if (/abort/i.test(String(e.reason && (e.reason.message || e.reason)))) fail(); });
         var check = setInterval(function () { var emu = window.EJS_emulator; if (emu && emu.failedToStart) { clearInterval(check); fail(); } if (emu && emu.started) clearInterval(check); }, 1000);
+      }
+
+      // Which keyboard keys are which buttons (EmulatorJS's default keys), per console
+      var K = { z: "Z", x: "X", a: "A", s: "S", q: "Q", e: "E", enter: "Enter", v: "V", tab: "Tab", r: "R", arrows: "Arrow keys", stick: "T F G H" };
+      var CONTROLS = {
+        nds:    [["A", K.z], ["B", K.x], ["X", K.a], ["Y", K.s], ["L / R", K.q + " / " + K.e], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows], ["Touch screen", "Mouse"]],
+        gba:    [["A", K.z], ["B", K.x], ["L / R", K.q + " / " + K.e], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
+        gb:     [["A", K.z], ["B", K.x], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
+        nes:    [["A", K.z], ["B", K.x], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
+        snes:   [["A", K.z], ["B", K.x], ["X", K.a], ["Y", K.s], ["L / R", K.q + " / " + K.e], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
+        segaMD: [["A", K.s], ["B", K.x], ["C", K.z], ["Start", K.enter], ["D-pad", K.arrows]],
+        psx:    [["✕ Cross", K.x], ["○ Circle", K.z], ["□ Square", K.s], ["△ Triangle", K.a], ["L1 / R1", K.q + " / " + K.e], ["L2 / R2", K.tab + " / " + K.r], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows], ["Left stick", K.stick]],
+        psp:    [["✕ Cross", K.x], ["○ Circle", K.z], ["□ Square", K.s], ["△ Triangle", K.a], ["L / R", K.q + " / " + K.e], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows], ["Analog stick", K.stick]],
+        n64:    [["A", K.x], ["B", K.s], ["Start", K.enter], ["Z trigger", K.tab], ["L / R", K.q + " / " + K.e], ["D-pad", K.arrows], ["Analog stick", K.stick], ["C buttons", "Set in the emulator menu"]]
+      };
+      function setUpControls(g) {
+        var rows = CONTROLS[g.console];
+        if (!rows) return;
+        var panel = document.getElementById("keys"), btn = document.getElementById("keysBtn");
+        panel.innerHTML = "<h3>Controls</h3><table></table><p>A gamepad works too. Keys can be changed in the emulator's own menu (the gamepad icon at the bottom of the game).</p>";
+        var t = panel.querySelector("table");
+        rows.forEach(function (r) {
+          var tr = document.createElement("tr"), a = document.createElement("td"), b = document.createElement("td");
+          a.textContent = r[0];
+          if (/ /.test(r[1]) && !/ \/ |Arrow|^T F G H$/.test(r[1])) b.textContent = r[1];
+          else r[1].split(" / ").forEach(function (k, i) { if (i) b.appendChild(document.createTextNode(" / ")); var kb = document.createElement("kbd"); kb.textContent = k; b.appendChild(kb); });
+          tr.appendChild(a); tr.appendChild(b); t.appendChild(tr);
+        });
+        btn.hidden = false;
+        btn.onclick = function () { panel.hidden = !panel.hidden; };
+        // Show the panel by itself the first time someone plays a console
+        var key = "fruti:controls-seen:" + g.console;
+        var seen = false; try { seen = !!localStorage.getItem(key); localStorage.setItem(key, "1"); } catch (e) {}
+        if (!seen) { panel.hidden = false; setTimeout(function () { panel.hidden = true; }, 15000); }
       }
 
       // Once the game runs, hide the Library button until the mouse moves
@@ -195,6 +246,7 @@
         watchEmulatorProgress();
         backButtonWhilePlaying();
         askForClickIfNeeded(g);
+        setUpControls(g);
         explainFailure(g);
         trackTime(g.id);
       }
