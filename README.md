@@ -48,7 +48,7 @@ Games run through [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3, 
 
 ## Big games and sound
 
-- **Big PSP games** packed as `.7z` / `.zip` are unpacked inside the browser, which needs a lot of memory. If one fails to load on a computer, upload it as a `.cso` instead (a compressed PSP ISO the emulator reads without unpacking; `.cso` parts like `My Game.part001.cso` work too).
+- **Big PSP games** packed as `.7z` / `.zip` are unpacked inside the browser, which runs out of memory above about 1 GB unpacked. The **Make big PSP games playable (.cso)** GitHub Action (`.github/workflows/psp-cso.yml`) fixes that: start it from the **Actions** tab (**Run workflow**) and it unpacks each such game on GitHub's computer, compresses it to `.cso` (which the PSP emulator reads without unpacking), checks it, and **replaces that game's archive parts with `.cso` parts** in the same folder; covers and smaller games are left alone. It only runs when started by hand. Uploading `.cso` parts yourself works too.
 - **Sound:** browsers only allow sound after a click or key press on the page, and some games freeze until sound starts, so the player shows **Click to play** when needed.
 
 ## Using it
