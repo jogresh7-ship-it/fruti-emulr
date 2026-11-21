@@ -3,7 +3,8 @@
 //   rom/<Console>/<Game Name>/<game file or parts>
 //
 //   <Console>    a folder name from CONSOLE_FOLDERS below, e.g. PS, DS, GBA
-//   <Game Name>  every game needs its own folder; files loose in rom/<Console>/ are ignored
+//   <Game Name>  a folder per game. A single, complete game file may also sit directly in
+//                rom/<Console>/ (its file name is the title); parts must be in a game folder.
 //   parts        My Game.part001.zip, My Game.part002.zip, ... (or My Game.zip.001, .002, ...)
 //                are downloaded in order and joined. Works both for one file cut into pieces
 //                and for parts that are each their own zip.
@@ -82,14 +83,16 @@
     var byGame = {};
     files.sort(natural).forEach(function (f) {
       var parts = f.path.split("/");                       // rom / Console / Game / file
-      if (parts.length < 4 || SKIP.test(f.path)) return;   // must be inside a game folder
+      if (parts.length < 3 || SKIP.test(f.path)) return;
+      var loose = parts.length === 3;                      // rom/Console/file.ext
       var con = CONSOLE_FOLDERS[parts[1].toLowerCase()];
       if (!con) return;
       var folder = parts[1] + "/" + parts[2];
       var g = byGame[folder] || (byGame[folder] = {
         id: "rom/" + folder,
         folder: folder,
-        title: parts[2],
+        title: loose ? parts[2].replace(/\.[^.]+$/, "") : parts[2],
+        loose: loose,
         console: con,
         consoleFolder: parts[1],
         unsupported: !!UNSUPPORTED[con],
@@ -106,7 +109,9 @@
       g.fileName = joinedName(g.files[0].path.split("/").pop());
       g.urls = g.files.map(function (f) { return url(f.path); });
       // Several files that aren't parts of one file (e.g. .cue + .bin) can't be joined
-      if (g.files.some(function (f) { return joinedName(f.path.split("/").pop()) !== g.fileName; }))
+      if (g.loose && g.fileName !== g.files[0].path.split("/").pop())
+        g.problem = "This is one part of a game. Put all its parts in a folder named after the game, inside rom/" + g.consoleFolder + "/.";
+      else if (g.files.some(function (f) { return joinedName(f.path.split("/").pop()) !== g.fileName; }))
         g.problem = "This folder has several different files. Put them in one .zip, or name the parts " + g.fileName + ".001, .002, ...";
     });
     // Extra details from games.js: { folder: "PS/Crash Bandicoot", tags: [...], desc: "...", color: [...] }

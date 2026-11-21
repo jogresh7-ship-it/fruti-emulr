@@ -13,5 +13,5 @@ rom/DS/
 ```
 
 - Parts are joined in order. Names like `My Game.part001.zip`, `My Game part 1.zip`, `My Game (Part 1).zip` and `My Game.zip.001` all work.
-- Files put straight into `rom/DS/` without a game folder are ignored.
+- A game that is one complete file can also go straight into `rom/DS/`. Its file name is the title. Parts must be in a game folder.
 - A `.jpg` or `.png` in the game's folder becomes its cover.
