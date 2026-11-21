@@ -34,7 +34,7 @@
   var UNSUPPORTED = {};
 
   var IMAGE = /\.(jpe?g|png|webp|gif)$/i;
-  var SKIP = /(^|\/)\.|\.(md|txt|py|js|json|html|css)$/i;
+  var SKIP = /(^|\/)\.|\.(md|txt|nfo|sfv|url|py|js|json|html|css)$|(^|\/)[^\/.]+$/i;   // hidden, notes, no extension
 
   function repo() {
     var host = /^([\w-]+)\.github\.io$/i.exec(location.hostname);
@@ -112,13 +112,20 @@
     var games = Object.keys(byGame).map(function (k) { return byGame[k]; }).filter(function (g) { return g.files.length; });
     games.forEach(function (g) { if (g.loose && !g.image) g.image = looseCovers[(g.consoleFolder + "/" + g.title).toLowerCase()]; });
     games.forEach(function (g) {
+      // The game is the biggest set of files that belong together (one file, or its parts);
+      // anything else in the folder (notes, placeholder files, ...) is ignored.
+      var sets = {};
+      g.files.forEach(function (f) {
+        var k = joinedName(f.path.split("/").pop()).toLowerCase();
+        (sets[k] || (sets[k] = { files: [], size: 0 })).files.push(f);
+        sets[k].size += f.size;
+      });
+      var best = Object.keys(sets).map(function (k) { return sets[k]; }).sort(function (a, b) { return b.size - a.size; })[0];
+      g.files = best.files; g.size = best.size;
       g.fileName = joinedName(g.files[0].path.split("/").pop());
       g.urls = g.files.map(function (f) { return url(f.path); });
-      // Several files that aren't parts of one file (e.g. .cue + .bin) can't be joined
       if (g.loose && g.fileName !== g.files[0].path.split("/").pop())
         g.problem = "This is one part of a game. Put all its parts in a folder named after the game, inside rom/" + g.consoleFolder + "/.";
-      else if (g.files.some(function (f) { return joinedName(f.path.split("/").pop()) !== g.fileName; }))
-        g.problem = "This folder has several different files. Put them in one .zip, or name the parts " + g.fileName + ".001, .002, ...";
     });
     // Extra details from games.js: { folder: "PS/Crash Bandicoot", tags: [...], desc: "...", color: [...] }
     (window.FRUTI_GAMES || []).forEach(function (x) {
@@ -139,8 +146,11 @@
     load: function (force) { return fetchTree(force).then(build); },
     // -> Promise of a message when parts are missing, else null. Reads only the start of the first part.
     checkParts: function (g) {
-      if (g.files.length < 2 && !/\.7z$/i.test(g.fileName)) return Promise.resolve(null);
-      return head(g.urls[0], 32).then(function (b) { return missingParts(g, b); }).catch(function () { return null; });
+      if (g.files.length < 2 && !/\.(7z|zip)$/i.test(g.fileName)) return Promise.resolve(null);
+      return bytesAt(g.urls[0], 0, 32).then(function (b) {
+        if (isCso(b)) return csoMissing(g, b);
+        return missingParts(g, b) || tooBigToUnpack(g, b);
+      }).catch(function () { return null; });
     },
     // Downloads a game (joining its parts) as a File. onProgress(loadedBytes, totalBytes)
     download: function (g, onProgress) {
@@ -172,27 +182,50 @@
   };
 
   // ---------- Missing parts ----------
-  // First n bytes of a file, without downloading all of it
-  function head(u, n) {
-    return fetch(u, { headers: { Range: "bytes=0-" + (n - 1) } }).then(function (r) {
+  // n bytes of a file starting at `from`, without downloading all of it
+  function bytesAt(u, from, n) {
+    return fetch(u, { headers: { Range: "bytes=" + from + "-" + (from + n - 1) } }).then(function (r) {
       if (!r.ok) throw new Error(r.status);
+      var skip = r.status === 206 ? 0 : from;      // server ignored the range: skip to `from` ourselves
       var reader = r.body.getReader(), got = new Uint8Array(0);
       var more = function () {
         return reader.read().then(function (x) {
           if (!x.done) { var a = new Uint8Array(got.length + x.value.length); a.set(got); a.set(x.value, got.length); got = a; }
-          if (x.done || got.length >= n) { reader.cancel().catch(function () {}); return got.subarray(0, n); }
+          if (x.done || got.length >= skip + n) { reader.cancel().catch(function () {}); return got.subarray(skip, skip + n); }
           return more();
         });
       };
       return more();
     });
   }
+  var isCso = function (b) { return b && b.length >= 24 && b[0] === 0x43 && b[1] === 0x49 && b[2] === 0x53 && b[3] === 0x4f; };
+  // A CSO's index says where its last block ends, i.e. how big the whole file must be
+  function csoMissing(g, b) {
+    var total = u32(b, 8) + u32(b, 12) * 4294967296, bs = u32(b, 16), align = b[21];
+    if (!bs) return Promise.resolve(null);
+    var at = 24 + 4 * Math.ceil(total / bs);
+    if (at + 4 > g.files[0].size) return Promise.resolve(null);
+    return bytesAt(g.urls[0], at, 4).then(function (e) {
+      var end = (u32(e, 0) & 0x7fffffff) * Math.pow(2, align);
+      return end > g.size ? partsMessage(g, end) : null;
+    });
+  }
+  // PSP games packed in a .7z / .zip are unpacked inside the browser, which runs out of
+  // memory for big ones; those need to be uploaded as .cso (made with the Game Splitter).
+  function tooBigToUnpack(g, b) {
+    var archive = (b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf) || (b[0] === 0x50 && b[1] === 0x4b);
+    if (g.console !== "psp" || !archive || g.size <= 600 * 1048576) return null;
+    return "This PSP game is too big to unpack in the browser (" + mb(g.size) + " packed). Unpack it on your computer to get the .iso, " +
+      "turn that into .cso parts with the Game Splitter (button at the top of the library), and upload those instead of these parts.";
+  }
   // A 7z archive's first 32 bytes say how big the whole archive is; compare with what's uploaded.
   function missingParts(g, b) {
     if (!b || b.length < 32 || !(b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf && b[4] === 0x27 && b[5] === 0x1c)) return null;
     var u64 = function (i) { return u32(b, i) + u32(b, i + 4) * 4294967296; };
     var total = 32 + u64(12) + u64(20);
-    if (g.size >= total) return null;
+    return g.size >= total ? null : partsMessage(g, total);
+  }
+  function partsMessage(g, total) {
     var have = g.files.length;
     if (have < 2) return "The game file is incomplete: " + mb(g.size) + " of " + mb(total) + " uploaded. Upload it again.";
     var need = Math.ceil(total / g.files[0].size);
@@ -251,9 +284,10 @@
     return bytes(file, 0, 8).then(function (b) {
       var ext = b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf ? ".7z"
         : b[0] === 0x50 && b[1] === 0x4b && b[2] === 3 && b[3] === 4 ? ".zip"
-        : b[0] === 0x52 && b[1] === 0x61 && b[2] === 0x72 && b[3] === 0x21 ? ".rar" : "";
+        : b[0] === 0x52 && b[1] === 0x61 && b[2] === 0x72 && b[3] === 0x21 ? ".rar"
+        : b[0] === 0x43 && b[1] === 0x49 && b[2] === 0x53 && b[3] === 0x4f ? ".cso" : "";   // CISO = compressed PSP ISO
       if (!ext || file.name.toLowerCase().slice(-ext.length) === ext) return file;
-      return new File([file], file.name.replace(/\.(zip|7z|rar)$/i, "") + ext);
+      return new File([file], file.name.replace(/\.(zip|7z|rar|cso)$/i, "") + ext);
     });
   }
 

@@ -47,6 +47,10 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .tb-btn { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
 .tb-btn:hover { background: var(--panel2); color: var(--text); }
 .clock { font-weight: 600; white-space: nowrap; }
+.tb-link { display: flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line);
+           color: var(--text); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.tb-link:hover { border-color: var(--accent); color: var(--accent); }
+.tb-link svg { width: 17px; height: 17px; }
 
 /* ---------- Sidebar: consoles ---------- */
 .consoles {
@@ -122,6 +126,8 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .brand { width: auto; font-size: 20px; }
   .topbar { padding: 0 12px; gap: 10px; }
   .clock { display: none; }
+  .tb-link span { display: none; }
+  .tb-link { padding: 0 9px; }
   .consoles { display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line); }
   .nav-title { display: none; }
   .con { flex: none; width: auto; margin: 0; padding: 6px 10px 6px 6px; }

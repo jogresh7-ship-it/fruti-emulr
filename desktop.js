@@ -64,7 +64,7 @@
     art.appendChild(h("span", "play", blocked
       ? `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>`
       : `<svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/></svg>`));
-    if (g.problem) art.appendChild(h("span", "warn", "Missing parts"));
+    if (g.problem) art.appendChild(h("span", "warn", /^Only \d/.test(g.problem) ? "Missing parts" : /too big/.test(g.problem) ? "Too big: needs .cso" : "Can't play"));
     p.appendChild(art);
     p.appendChild(h("div", "p-title", esc(g.title)));
     if (times[g.id] >= 60000) p.appendChild(h("div", "p-sub", `Played ${fmt(times[g.id])}`));

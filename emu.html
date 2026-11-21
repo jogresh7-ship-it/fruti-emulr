@@ -23,6 +23,15 @@
     #back:hover { background: rgba(41,182,246,.9); color: #0d1015; }
     #back svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
     body.playing #back { opacity: 0; pointer-events: none; }
+    /* Browsers only allow sound after a click or key press on this page. Some games (often PSP)
+       wait for sound and freeze without it, so ask for one click when needed. */
+    #tap { position: fixed; inset: 0; z-index: 9998; display: grid; place-items: center; align-content: center; gap: 14px;
+           background: rgba(0,0,0,.6); color: #f3f5f8; cursor: pointer; text-align: center; padding: 16px;
+           font-family: "Segoe UI", Roboto, Inter, system-ui, sans-serif; }
+    #tap .big { display: flex; align-items: center; gap: 12px; padding: 16px 30px 16px 24px; border-radius: 10px; background: #2fb347;
+                font-size: 20px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+    #tap .big svg { width: 22px; height: 22px; fill: currentColor; }
+    #tap small { color: #c3c9d4; font-size: 14px; }
     body.playing.mouse #back { opacity: 1; pointer-events: auto; }
   </style>
 </head>
@@ -75,6 +84,23 @@
 
       // EmulatorJS shows its own text while it downloads the core and unpacks the game
       // ("Decompress Game Data 34%"). Watch it and add the time left underneath.
+      // If the emulator fails before the game starts (usually: too big to unpack in the browser), say so plainly
+      function explainFailure(g) {
+        var shown = false;
+        var fail = function () {
+          var emu = window.EJS_emulator;
+          if (shown || (emu && emu.started)) return;
+          shown = true;
+          var big = g.console === "psp" ? " PSP games this big need to be uploaded as .cso parts: unpack the game on your computer, " +
+            "then use the Game Splitter (button at the top of the library) on the .iso." : "";
+          show(g.title, "The game couldn't be loaded. It may be too big to unpack in the browser, or a file may be damaged." + big);
+          document.body.classList.remove("playing");
+        };
+        addEventListener("error", function (e) { if (/abort/i.test(String(e.message || ""))) fail(); });
+        addEventListener("unhandledrejection", function (e) { if (/abort/i.test(String(e.reason && (e.reason.message || e.reason)))) fail(); });
+        var check = setInterval(function () { var emu = window.EJS_emulator; if (emu && emu.failedToStart) { clearInterval(check); fail(); } if (emu && emu.started) clearInterval(check); }, 1000);
+      }
+
       // Once the game runs, hide the Library button until the mouse moves
       function backButtonWhilePlaying() {
         var hideTimer;
@@ -113,6 +139,36 @@
         });
       }
 
+      // Keep track of the emulator's sound so one click or key press can switch it on
+      var audioContexts = [];
+      ["AudioContext", "webkitAudioContext"].forEach(function (name) {
+        var Base = window[name];
+        if (!Base) return;
+        window[name] = class extends Base { constructor(a) { super(a); audioContexts.push(this); } };
+      });
+      function soundOn() { audioContexts.forEach(function (c) { if (c.state !== "running" && c.state !== "closed") c.resume().catch(function () {}); }); }
+      addEventListener("pointerdown", soundOn, true);
+      addEventListener("keydown", soundOn, true);
+
+      // Once the game runs: if sound is still blocked, show "Click to play"
+      function askForClickIfNeeded(g) {
+        var check = setInterval(function () {
+          var emu = window.EJS_emulator;
+          if (!emu || !emu.started) return;
+          clearInterval(check);
+          setTimeout(function () {
+            if (!audioContexts.some(function (c) { return c.state === "suspended"; })) return;
+            var tap = document.createElement("div"); tap.id = "tap";
+            tap.innerHTML = '<div class="big"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z"/></svg>Click to play</div><small></small>';
+            tap.querySelector("small").textContent = g.title + " is ready. Your browser needs one click (or any key) to turn on the sound.";
+            document.body.appendChild(tap);
+            var go = function () { soundOn(); tap.remove(); removeEventListener("keydown", go, true); };
+            tap.addEventListener("pointerdown", go);
+            addEventListener("keydown", go, true);
+          }, 600);
+        }, 300);
+      }
+
       function start(file, g) {
         document.title = g.title + " - Fruti";
         stage.innerHTML = "";
@@ -129,6 +185,8 @@
         loadScript("emulatorjs/data/loader.js");
         watchEmulatorProgress();
         backButtonWhilePlaying();
+        askForClickIfNeeded(g);
+        explainFailure(g);
         trackTime(g.id);
       }
 

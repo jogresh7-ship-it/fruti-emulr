@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Game Splitter - Fruti</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2329b6f6'/%3E%3Cpath d='M11 9h11v3.5h-7v3h6v3.5h-6V24h-4z' fill='%230f1218'/%3E%3C/svg%3E">
+  <style>
+    :root { --bg: #12151b; --bg2: #161a21; --panel: #1c212a; --panel2: #252b36; --line: #2a313d; --text: #e8ebf1; --muted: #8d96a7; --accent: #29b6f6; --green: #2fb347; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Segoe UI", Roboto, Inter, system-ui, sans-serif; }
+    a { color: var(--accent); }
+    header { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: var(--bg2); border-bottom: 1px solid var(--line); }
+    header a.back { display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--text); padding: 6px 12px 6px 8px; border-radius: 8px; border: 1px solid var(--line); }
+    header a.back:hover { border-color: var(--accent); }
+    header h1 { margin: 0; font-size: 20px; }
+    svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 60px; }
+    .intro { color: var(--muted); margin: 0 0 18px; }
+    #drop { display: grid; place-items: center; text-align: center; gap: 6px; padding: 42px 16px; border: 2px dashed #3a4352; border-radius: 14px;
+            background: var(--panel); cursor: pointer; transition: border-color .15s, background .15s; }
+    #drop:hover, #drop.over { border-color: var(--accent); background: #1f2631; }
+    #drop b { font-size: 18px; }
+    #drop small { color: var(--muted); }
+    .card { margin-top: 18px; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .row { display: grid; grid-template-columns: 150px 1fr; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
+    .row label { color: var(--muted); font-size: 14px; }
+    input[type=text], select { width: 100%; height: 38px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg2); color: var(--text); font: inherit; }
+    input[type=text]:focus, select:focus { outline: none; border-color: var(--accent); }
+    .check { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0 12px; }
+    .check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+    .check small { display: block; color: var(--muted); }
+    .warn { margin: 6px 0 12px; padding: 10px 12px; border-radius: 8px; background: rgba(240,170,40,.12); border: 1px solid rgba(240,170,40,.4); color: #f3d08a; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 22px; border-radius: 8px; border: 0; cursor: pointer;
+           background: var(--green); color: #fff; font: 700 15px inherit; font-family: inherit; letter-spacing: .03em; }
+    .btn:disabled { background: #3a414d; cursor: default; }
+    .btn.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
+    .bar { height: 10px; border-radius: 5px; background: var(--panel2); overflow: hidden; margin: 12px 0 8px; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+    .status { color: var(--muted); }
+    .status b { color: var(--text); }
+    .done h2 { margin: 0 0 8px; font-size: 18px; }
+    .done ol { margin: 8px 0 0; padding-left: 20px; }
+    .done li { margin-bottom: 6px; }
+    code { background: var(--bg2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 13px; overflow-wrap: anywhere; }
+    @media (max-width: 560px) { .row { grid-template-columns: 1fr; gap: 4px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../index.html"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Library</a>
+    <h1>Game Splitter</h1>
+  </header>
+  <main>
+    <p class="intro">Drop a game file here and it's cut into parts small enough for GitHub. Big PSP games (<code>.iso</code>) are also
+      shrunk to <code>.cso</code>, which the launcher can play without unpacking. Your file never leaves your computer.</p>
+
+    <label id="drop">
+      <svg viewBox="0 0 24 24" style="width:40px;height:40px;color:var(--accent)"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+      <b>Drop a game file here</b>
+      <small>or click to choose one (.iso, .cso, .nds, .gba, .zip, .7z, ...)</small>
+      <input type="file" id="file" hidden>
+    </label>
+
+    <section class="card" id="setup" hidden>
+      <div class="row"><label>File</label><div id="fileinfo"></div></div>
+      <div class="row"><label for="name">Game name</label><input type="text" id="name" autocomplete="off"></div>
+      <div class="row"><label for="console">Console</label>
+        <select id="console">
+          <option value="PSP">PSP (PlayStation Portable)</option>
+          <option value="PS">PlayStation (PS1)</option>
+          <option value="DS">Nintendo DS</option>
+          <option value="GBA">Game Boy Advance</option>
+          <option value="GB">Game Boy / Color</option>
+          <option value="N64">Nintendo 64</option>
+          <option value="SNES">Super Nintendo</option>
+          <option value="NES">NES</option>
+          <option value="Genesis">Sega Genesis</option>
+        </select></div>
+      <div class="row"><label for="size">Part size</label>
+        <select id="size">
+          <option value="25">25 MB: for uploading on the GitHub website</option>
+          <option value="20">20 MB</option>
+          <option value="50">50 MB: GitHub Desktop or git</option>
+          <option value="95">95 MB: biggest for GitHub Desktop or git (limit 100 MB)</option>
+        </select></div>
+      <label class="check" id="csoRow" hidden><input type="checkbox" id="cso" checked>
+        <span>Shrink to CSO (recommended)<small>Needed for big PSP games: the browser can't unpack them otherwise. Usually about half the size.</small></span></label>
+      <div class="warn" id="archiveWarn" hidden></div>
+      <button class="btn" id="go">Make parts</button>
+      <p class="status" id="folderNote"></p>
+    </section>
+
+    <section class="card" id="work" hidden>
+      <div class="status" id="step"></div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="status" id="eta"></div>
+    </section>
+
+    <section class="card done" id="done" hidden></section>
+  </main>
+
+  <script>
+  (function () {
+    "use strict";
+    var $ = function (s) { return document.querySelector(s); };
+    var MB = 1048576, BS = 2048, file = null;
+    var mb = function (n) { return n >= 1073741824 ? (n / 1073741824).toFixed(2) + " GB" : (n / MB).toFixed(n < 10 * MB ? 1 : 0) + " MB"; };
+    var canPickFolder = typeof window.showDirectoryPicker === "function";
+
+    // ---------- Choosing a file ----------
+    var drop = $("#drop");
+    ["dragenter", "dragover"].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add("over"); }); });
+    ["dragleave", "drop"].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove("over"); }); });
+    drop.addEventListener("drop", function (e) { if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]); });
+    $("#file").onchange = function (e) { if (e.target.files[0]) pick(e.target.files[0]); };
+    // Dropping anywhere on the page works too
+    addEventListener("dragover", function (e) { e.preventDefault(); });
+    addEventListener("drop", function (e) { e.preventDefault(); if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]); });
+
+    var EXT_CONSOLE = { nds: "DS", gba: "GBA", gb: "GB", gbc: "GB", z64: "N64", n64: "N64", v64: "N64", sfc: "SNES", smc: "SNES",
+      nes: "NES", md: "Genesis", gen: "Genesis", smd: "Genesis", cso: "PSP", pbp: "PSP", chd: "PS", cue: "PS", bin: "PS" };
+
+    function read(f, from, to) { return f.slice(from, to).arrayBuffer().then(function (b) { return new Uint8Array(b); }); }
+
+    function pick(f) {
+      file = f;
+      $("#done").hidden = true; $("#work").hidden = true; $("#setup").hidden = false;
+      var ext = (f.name.match(/\.([a-z0-9]+)$/i) || [, ""])[1].toLowerCase();
+      $("#fileinfo").textContent = f.name + " (" + mb(f.size) + ")";
+      // Game name: file name without extension and without part numbers
+      $("#name").value = f.name.replace(/\.[^.]+$/, "").replace(/[\s._-]*[([]?part[\s._-]*\d+[)\]]?$/i, "").replace(/_ /g, ": ").trim();
+      if (EXT_CONSOLE[ext]) $("#console").value = EXT_CONSOLE[ext];
+      // An ISO is PSP if its disc label says "PSP GAME", else PlayStation
+      var isoCheck = ext === "iso" ? read(f, 0x8000, 0x8000 + 40).then(function (b) {
+        var label = new TextDecoder().decode(b.subarray(8, 40));
+        $("#console").value = /PSP GAME/.test(label) ? "PSP" : "PS";
+      }).catch(function () {}) : Promise.resolve();
+      read(f, 0, 8).then(function (b) {
+        var is7z = b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf;
+        var isZip = b[0] === 0x50 && b[1] === 0x4b;
+        var isRar = b[0] === 0x52 && b[1] === 0x61 && b[2] === 0x72 && b[3] === 0x21;
+        file.archive = is7z ? "7z" : isZip ? "zip" : isRar ? "rar" : "";
+        return isoCheck;
+      }).then(update);
+    }
+
+    function update() {
+      if (!file) return;
+      var ext = (file.name.match(/\.([a-z0-9]+)$/i) || [, ""])[1].toLowerCase();
+      var psp = $("#console").value === "PSP";
+      $("#csoRow").hidden = !(psp && ext === "iso");
+      var w = $("#archiveWarn"), msg = "";
+      if (file.archive === "rar") msg = "This is a .rar file. The launcher can't open those: unpack it on your computer first (right-click > Extract), then drop the game file here.";
+      else if (file.archive && psp && file.size > 300 * MB) msg = "This is a big PSP game inside a ." + file.archive + " file. The browser can't unpack PSP games this big. " +
+        "Unpack it on your computer first (right-click > Extract All, or 7-Zip > Extract Here), then drop the .iso file here; it will be shrunk to .cso.";
+      w.textContent = msg; w.hidden = !msg;
+      $("#folderNote").textContent = canPickFolder
+        ? "You'll choose a folder on your computer; a folder named after the game is made inside it, with the parts."
+        : "Your browser will download the parts one by one (allow it to download several files if it asks). Chrome or Edge can save them straight into a folder instead.";
+    }
+    $("#console").onchange = update;
+
+    // ---------- Where the parts go ----------
+    // Writes bytes in order and starts a new part file every `partSize` bytes.
+    // dir = a folder (Chrome / Edge) or null (then each part is downloaded).
+    function PartWriter(dir, base, ext, partSize, totalBytes) {
+      var many = totalBytes > partSize, names = [], cur = null, chunks = [], curSize = 0, pending = Promise.resolve();
+      var nameOf = function (i) { return many ? base + ".part" + String(i).padStart(3, "0") + "." + ext : base + "." + ext; };
+      async function open() {
+        names.push(nameOf(names.length + 1)); curSize = 0; chunks = [];
+        if (dir) cur = await (await dir.getFileHandle(names[names.length - 1], { create: true })).createWritable();
+      }
+      async function close() {
+        if (dir) { if (cur) await cur.close(); cur = null; return; }
+        var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(chunks)); a.download = names[names.length - 1];
+        chunks = []; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 120000);
+        await new Promise(function (r) { setTimeout(r, 700); });   // browsers skip downloads started too quickly
+      }
+      async function put(u8) {
+        for (var off = 0; off < u8.length;) {
+          if (!names.length) await open();
+          else if (curSize >= partSize) { await close(); await open(); }
+          var piece = u8.subarray(off, off + Math.min(partSize - curSize, u8.length - off));
+          if (dir) await cur.write(piece); else chunks.push(piece.slice());
+          curSize += piece.length; off += piece.length;
+        }
+      }
+      return {
+        write: function (u8) { pending = pending.then(function () { return put(u8); }); return pending; },
+        finish: function () { pending = pending.then(close); return pending.then(function () { return names; }); }
+      };
+    }
+
+    // ---------- Progress with time left ----------
+    function Progress(label) {
+      var t0 = performance.now();
+      $("#step").innerHTML = label;
+      return function (p) {
+        $("#bar").style.width = Math.min(100, p * 100) + "%";
+        var el = (performance.now() - t0) / 1000;
+        if (el < 3 || p <= 0) { $("#eta").textContent = "Working out the time left…"; return; }
+        var left = el * (1 - p) / p;
+        $("#eta").textContent = left < 5 ? "A few seconds left" : left < 60 ? "About " + Math.ceil(left / 5) * 5 + " seconds left"
+          : "About " + Math.floor(left / 60) + " min " + Math.round(left % 60 / 10) * 10 + " s left";
+      };
+    }
+
+    // ---------- Compressing PSP ISOs to CSO (several workers at once) ----------
+    var CHUNK = 512 * BS;   // 1 MB of blocks per job
+    function compressAll(onChunk, sizesOnly, progress) {
+      var n = Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 4) - 1));
+      var workers = [], jobs = Math.ceil(file.size / CHUNK), next = 0, doneUpTo = 0, results = {}, inflight = 0;
+      for (var i = 0; i < n; i++) workers.push(new Worker("worker.js"));
+      return new Promise(function (resolve, reject) {
+        var free = workers.slice();
+        function pump() {
+          while (free.length && next < jobs && inflight < n * 2) {
+            (function (id, w) {
+              inflight++;
+              read(file, id * CHUNK, Math.min(file.size, (id + 1) * CHUNK)).then(function (b) {
+                w.onmessage = function (e) {
+                  results[id] = e.data; inflight--; free.push(w);
+                  while (results[doneUpTo]) { var r = results[doneUpTo]; delete results[doneUpTo]; onChunk(r); doneUpTo++; progress(doneUpTo / jobs); }
+                  if (doneUpTo === jobs) { workers.forEach(function (x) { x.terminate(); }); resolve(); } else pump();
+                };
+                w.onerror = function (err) { workers.forEach(function (x) { x.terminate(); }); reject(new Error("Compressing failed: " + (err.message || "worker error"))); };
+                w.postMessage({ id: id, buf: b.buffer, sizesOnly: sizesOnly }, [b.buffer]);
+              }, reject);
+            })(next++, free.pop());
+          }
+        }
+        pump();
+      });
+    }
+
+    function makeCso(dirFor) {
+      var blocks = Math.ceil(file.size / BS), headerLen = 24 + 4 * (blocks + 1);
+      var index = new Uint32Array(blocks + 1), pos = headerLen, b = 0;
+      // Pass 1: work out every block's compressed size, so the index (stored at the start) is known
+      return compressAll(function (r) {
+        r.sizes.forEach(function (s) { index[b++] = s < 0 ? (pos | 0x80000000) >>> 0 : pos; pos += s < 0 ? BS : s; });
+      }, true, Progress("<b>Step 1 of 2:</b> measuring how small each piece of the game gets…")).then(function () {
+        // The last block may be shorter than 2 KB when stored uncompressed
+        var tail = file.size % BS;
+        if (tail && index[blocks - 1] & 0x80000000) pos -= BS - tail;
+        index[blocks] = pos;
+        if (pos > 0x7fffffff) throw new Error("This game is too big for CSO (over 2 GB after shrinking).");
+        return dirFor(pos).then(function (writer) {
+          var head = new Uint8Array(headerLen), dv = new DataView(head.buffer);
+          head.set([0x43, 0x49, 0x53, 0x4f]);                 // "CISO"
+          dv.setUint32(4, 24, true);                          // header size
+          dv.setUint32(8, file.size % 4294967296, true);      // total bytes (64-bit)
+          dv.setUint32(12, Math.floor(file.size / 4294967296), true);
+          dv.setUint32(16, BS, true);                         // block size
+          head[20] = 1; head[21] = 0;                         // version 1, no alignment
+          for (var i = 0; i <= blocks; i++) dv.setUint32(24 + i * 4, index[i], true);
+          writer.write(head);
+          // Pass 2: compress again (same result) and write the data
+          return compressAll(function (r) { writer.write(new Uint8Array(r.data)); }, false, Progress("<b>Step 2 of 2:</b> shrinking the game and writing the parts…")).then(function () { return writer.finish(); });
+        });
+      });
+    }
+
+    function plainSplit(writer) {
+      var prog = Progress("<b>Cutting the game into parts…</b>"), off = 0, step = 8 * MB;
+      function loop() {
+        if (off >= file.size) return writer.finish();
+        var end = Math.min(file.size, off + step);
+        return read(file, off, end).then(function (b) { off = end; return writer.write(b); }).then(function () { prog(off / file.size); return loop(); });
+      }
+      return loop();
+    }
+
+    // ---------- Go ----------
+    $("#go").onclick = function () {
+      if (!file) return;
+      var name = $("#name").value.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() || "Game";
+      var con = $("#console").value, partSize = +$("#size").value * MB;
+      var ext = (file.name.match(/\.([a-z0-9]+)$/i) || [, "bin"])[1].toLowerCase();
+      var toCso = !$("#csoRow").hidden && $("#cso").checked;
+      var outExt = toCso ? "cso" : ext;
+      var folderPromise = canPickFolder ? window.showDirectoryPicker({ mode: "readwrite", id: "fruti-splitter" }).then(function (d) { return d.getDirectoryHandle(name, { create: true }); }) : Promise.resolve(null);
+      var dirName = name;
+      folderPromise.then(function (dir) {
+        $("#setup").hidden = true; $("#work").hidden = false; $("#bar").style.width = "0";
+        var t0 = Date.now();
+        var job = toCso
+          ? makeCso(function (total) { return Promise.resolve(PartWriter(dir, name, outExt, partSize, total)); })
+          : plainSplit(PartWriter(dir, name, outExt, partSize, file.size));
+        return job.then(function (names) {
+          var secs = Math.round((Date.now() - t0) / 1000);
+          $("#work").hidden = true;
+          var d = $("#done"); d.hidden = false;
+          d.innerHTML = "<h2>Done in " + (secs < 60 ? secs + " seconds" : Math.floor(secs / 60) + " min " + (secs % 60) + " s") + "</h2>" +
+            "<p class='status'>" + names.length + (names.length === 1 ? " file" : " parts") + " (" + names[0] + (names.length > 1 ? " … " + names[names.length - 1] : "") + ")" +
+            (dir ? " saved in a folder named <code></code>." : " downloaded. Put them all in one folder named <code></code>.") + "</p>" +
+            "<p><b>Upload them to GitHub:</b></p><ol>" +
+            "<li>Open your repository on GitHub and go into <code>rom/" + con + "</code>.</li>" +
+            "<li>Click <b>Add file → Upload files</b> and drag in the whole <code></code> folder. Upload every part.</li>" +
+            "<li>Click <b>Commit changes</b>, wait a minute, then press <b>↻</b> in the launcher.</li></ol>" +
+            "<p class='status'>Want a cover? Add a .jpg or .png to the same folder.</p>" +
+            "<p><button class='btn ghost' id='again'>Split another game</button></p>";
+          d.querySelectorAll("code").forEach(function (c) { if (!c.textContent) c.textContent = dirName; });
+          $("#again").onclick = function () { $("#done").hidden = true; $("#setup").hidden = true; file = null; scrollTo(0, 0); };
+        });
+      }).catch(function (e) {
+        if (e && e.name === "AbortError") return;   // folder picker cancelled
+        $("#work").hidden = true; $("#setup").hidden = false;
+        alert("Something went wrong: " + (e && e.message ? e.message : e));
+      });
+    };
+  })();
+  </script>
+</body>
+</html>
