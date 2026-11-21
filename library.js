@@ -96,7 +96,8 @@
       var g = byGame[folder] || (byGame[folder] = {
         id: "rom/" + folder,
         folder: folder,
-        title: loose ? parts[2].replace(/\.[^.]+$/, "") : parts[2],
+        // Downloads write ":" as "_" (not allowed in file names): "Grand Theft Auto_ Vice City" -> "Grand Theft Auto: Vice City"
+        title: (loose ? parts[2].replace(/\.[^.]+$/, "") : parts[2]).replace(/_ /g, ": "),
         loose: loose,
         console: con,
         consoleFolder: parts[1],
