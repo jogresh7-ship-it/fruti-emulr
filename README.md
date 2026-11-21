@@ -55,7 +55,7 @@ Open **Game Splitter** (top of the library, or `splitter/`) to cut a game into p
 3. Click **Make parts**. In Chrome or Edge you pick a folder and the parts are saved in a folder named after the game; other browsers download the parts one by one.
 4. Upload that folder to `rom/<Console>/` on GitHub.
 
-**Big PSP games:** the browser can't unpack a big `.7z` / `.zip` (it runs out of memory; for example a 1.75 GB game). Unpack it on your computer to get the `.iso`, then drop the `.iso` on the splitter: it's shrunk to **`.cso`**, which the PSP emulator reads directly without unpacking. The file never leaves your computer. Compression uses [fflate](https://github.com/101arrowz/fflate) (MIT, `splitter/fflate.js`).
+**Big PSP games:** the browser can't unpack a big `.7z` / `.zip` (it runs out of memory; for example a 1.75 GB game). Unpack it on your computer to get the `.iso`, then drop the `.iso` on the splitter: it's shrunk to **`.cso`**, which the PSP emulator reads directly without unpacking. The file never leaves your computer. Compression uses [fflate](https://github.com/101arrowz/fflate) (MIT), bundled inside the page. The splitter is one file, `splitter/index.html`: download it to use it straight from your computer, even offline.
 
 **Sound:** browsers only allow sound after a click or key press on the page, and some games freeze until sound starts, so the player shows **Click to play** when needed.
 
