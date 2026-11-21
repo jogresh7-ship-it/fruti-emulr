@@ -22,7 +22,9 @@
   <script src="games.js"></script>
   <script>
     // Console player (EmulatorJS).
-    //   emu.html?system=<console>&game=<rom id>  -> plays rom/<console>/<rom id>.js (ROM embedded as base64)
+    //   emu.html?system=<console>&game=<rom>  plays a game listed in games.js:
+    //     rom: "my-game"            -> rom/<console>/my-game.js (made by rom/add-rom.py; works from file://)
+    //     rom: "My Game.zip" / .nds -> rom/<console>/My Game.zip  (plain file; needs a web server such as GitHub Pages)
     (function () {
       var stage = document.getElementById("game");
       var q = new URLSearchParams(location.search);
@@ -50,7 +52,7 @@
         window.EJS_player = "#game";
         window.EJS_core = sys.id;
         window.EJS_gameName = name;
-        window.EJS_gameUrl = rom;               // File, Blob or Uint8Array
+        window.EJS_gameUrl = rom;               // URL, File, Blob or Uint8Array
         window.EJS_pathtodata = "emulatorjs/data/";
         window.EJS_paths = { "compression.js": "emulatorjs/fruti-compression.js" };
         window.EJS_DEBUG_XX = true;             // load the non-minified scripts we ship
@@ -78,16 +80,29 @@
       }
 
       if (id) {
-        if (!/^[\w-]+$/.test(id)) { stage.innerHTML = '<div class="msg">No game selected.</div>'; return; }
         var g = (window.FRUTI_GAMES || []).filter(function (x) { return x.rom === id && (x.console || "n64") === sys.id; })[0];
         // Only games added to games.js can be played
         if (!g) { stage.innerHTML = '<div class="msg">This game is not in the library.</div>'; return; }
-        if (g && g.image) { var l = document.createElement("link"); l.rel = "icon"; l.href = g.image; document.head.appendChild(l); }
+        // Only files directly inside rom/<console>/
+        if (/[\/\\]|^\.+$/.test(id)) { stage.innerHTML = '<div class="msg">Invalid game file name.</div>'; return; }
+        if (g.image) { var l = document.createElement("link"); l.rel = "icon"; l.href = g.image; document.head.appendChild(l); }
+
+        // Plain game file (has an extension): the emulator downloads it
+        if (/\.[a-z0-9]{1,5}$/i.test(id)) {
+          if (location.protocol === "file:") {
+            stage.innerHTML = '<div class="msg">' + g.title + ' is a plain game file, so it only plays from the website (GitHub Pages).<br>' +
+              'To play it from your computer, convert it with rom/add-rom.py.</div>';
+            return;
+          }
+          start("rom/" + sys.id + "/" + encodeURIComponent(id), g.title);
+          return;
+        }
+
         stage.innerHTML = '<div class="msg">Loading…</div>';
         loadScript("rom/" + sys.id + "/" + id + ".js").then(function () {
           var bytes = b64ToBytes(window.FRUTI_ROM[id]);
           delete window.FRUTI_ROM[id];
-          start(bytes, g ? g.title : id);
+          start(bytes, g.title);
         }).catch(function () {
           stage.innerHTML = '<div class="msg">This game failed to load.</div>';
         });

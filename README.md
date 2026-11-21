@@ -11,22 +11,37 @@ Consoles: Nintendo DS, Nintendo 64, Game Boy Advance, Game Boy / Color, SNES, NE
 
 ## Adding a ROM game
 
+Console ids (also the folder names inside `rom/`): `nds`, `n64`, `gba`, `gb`, `snes`, `nes`, `segaMD`, `psx`.
+
+### Easy way: upload the file (plays on GitHub Pages)
+
+1. Upload the game file (`.nds`, `.gba`, `.zip`, ...) to `rom/<console>/`, for example `rom/nds/New Super Mario Bros.zip`. The GitHub website takes files up to 25 MB, so zip big games.
+2. Add an entry to `games.js` with `rom` set to the exact file name:
+
+   ```js
+   { id: "nsmb", title: "New Super Mario Bros.", tags: ["Platformer"], rom: "New Super Mario Bros.zip", console: "nds" },
+   ```
+
+These games play on the website. Browsers don't let pages opened from disk load plain files, so they won't play when you double-click `index.html`; use the offline way for that.
+
+### Offline way: convert the file (also plays from disk)
+
 1. Convert the ROM once:
 
    ```bash
    python3 rom/add-rom.py path/to/my-game.nds my-game nds
    ```
 
-   This writes `rom/nds/my-game.js`. Console ids are in `consoles.js`: `nds`, `n64`, `gba`, `gb`, `snes`, `nes`, `segaMD`, `psx`.
-2. Add an entry to `games.js`:
+   This writes `rom/nds/my-game.js`.
+2. Add an entry to `games.js` with `rom` set to the id, without an extension:
 
    ```js
-   { id: "my-game", title: "My Game", tags: ["Action"], rom: "my-game", console: "nds", image: "rom/nds/my-game.jpg", desc: "..." }
+   { id: "my-game", title: "My Game", tags: ["Action"], rom: "my-game", console: "nds" },
    ```
 
-   `image` is an optional cover picture; put it in `rom/` too.
+Optional fields: `image` (a cover picture; put it in `rom/` too), `color` (two colors for the gradient used when there's no cover) and `desc` (description).
 
-Only games added this way can be played. Visitors can't load or run their own ROMs.
+Only games listed in `games.js` can be played. Visitors can't load or run their own ROMs.
 
 ### Why ROMs are `.js` files
 
