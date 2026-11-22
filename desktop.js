@@ -330,5 +330,59 @@
   // Coming back from a game (back button / bfcache): refresh play times
   addEventListener("pageshow", () => { times = store.get("times", {}); history = store.get("history", []); if (state === "ok") render(); });
 
+  // ---------- Game controller in the library: D-pad / stick moves, A plays, B goes back, LB / RB switch tabs ----------
+  (() => {
+    const prev = {}; let last = 0, padOn = false;
+    const items = () => [...document.querySelectorAll(".sb-link, .hd-tabs .tab, .card, .row, .flt")].filter((el) => el.offsetParent);
+    function move(dx, dy) {
+      const list = items(); if (!list.length) return;
+      const cur = document.activeElement && list.includes(document.activeElement) ? document.activeElement : null;
+      if (!cur) { (list.find((el) => el.matches(".card, .row")) || list[0]).focus(); return; }
+      const a = cur.getBoundingClientRect(), ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+      let best = null, bestScore = Infinity;
+      list.forEach((el) => {
+        if (el === cur) return;
+        const b = el.getBoundingClientRect(), bx = b.left + b.width / 2, by = b.top + b.height / 2;
+        const ddx = bx - ax, ddy = by - ay;
+        const along = dx ? ddx * dx : ddy * dy, across = dx ? Math.abs(ddy) : Math.abs(ddx);
+        if (along <= 4) return;
+        const score = along + across * 2.5;
+        if (score < bestScore) { bestScore = score; best = el; }
+      });
+      if (best) { best.focus({ preventScroll: true }); best.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }
+    }
+    function tab(step) {
+      const t = [...document.querySelectorAll(".hd-tabs .tab")]; if (!t.length) return;
+      const i = t.findIndex((x) => x.classList.contains("on")); t[(i + step + t.length) % t.length].click();
+      requestAnimationFrame(() => { const first = document.querySelector(".card, .row"); if (first) first.focus({ preventScroll: true }); });
+    }
+    function press(i) {
+      if (i === 12) move(0, -1); else if (i === 13) move(0, 1); else if (i === 14) move(-1, 0); else if (i === 15) move(1, 0);
+      else if (i === 0) { const el = document.activeElement; if (el && el !== document.body) el.click(); else move(0, 1); }
+      else if (i === 1) { if (!$("#imp").hidden) closeImport(); else if ($("#search").value) { $("#search").value = ""; render(); } else document.body.classList.remove("menu-open"); }
+      else if (i === 4) tab(-1); else if (i === 5) tab(1);
+      else if (i === 9) $("#search").focus();
+    }
+    function poll(t) {
+      const pad = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(Boolean);
+      if (pad) {
+        if (!padOn) { padOn = true; toast("Controller connected: D-pad / stick to move, A to play, B back, LB / RB tabs."); }
+        const btn = (i) => pad.buttons[i] && pad.buttons[i].pressed;
+        const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+        const dirs = { 12: btn(12) || ay < -0.6, 13: btn(13) || ay > 0.6, 14: btn(14) || ax < -0.6, 15: btn(15) || ax > 0.6 };
+        [0, 1, 4, 5, 9].forEach((i) => { const d = btn(i); if (d && !prev[i]) press(i); prev[i] = d; });
+        Object.keys(dirs).forEach((k) => {
+          const d = dirs[k];
+          if (d && (!prev[k] || t - last > 180)) { if (!prev[k] || t - last > 180) { press(+k); last = t; } }
+          if (d && !prev[k]) last = t + 220;   // short pause before repeating when held
+          prev[k] = d;
+        });
+      }
+      requestAnimationFrame(poll);
+    }
+    addEventListener("gamepadconnected", () => { document.body.classList.add("pad"); });
+    requestAnimationFrame(poll);
+  })();
+
   load(false);
 })();

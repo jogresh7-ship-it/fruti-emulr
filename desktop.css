@@ -268,3 +268,9 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   .content { padding-bottom: 60px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Controller / keyboard focus: a clear glowing outline */
+.card:focus-visible .card-art, .card:focus .card-art { outline: 3px solid #fff; outline-offset: 3px; }
+.row:focus, .sb-link:focus, .flt:focus, .con-head:focus, .hd-tabs .tab:focus { outline: 2px solid #fff; outline-offset: 2px; }
+.card:focus { outline: none; }
+.card:focus .card-art { transform: translateY(-6px) scale(1.03); box-shadow: 0 18px 40px rgba(0,0,0,.6); }
