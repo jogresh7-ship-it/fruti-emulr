@@ -223,3 +223,11 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .cards.boxes .card:hover .card-art img { transform: none; }
 .cards.boxes .card-info { padding: 8px 2px 0; }
 @media (max-width: 760px) { .cards.boxes { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px 10px; } }
+
+/* Home: one area per console */
+.con-sec { margin: 6px 0 30px; }
+.con-head { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 4px 10px 4px 4px; border-radius: 6px; font-size: 18px; font-weight: 700; color: var(--strong); }
+.con-head:hover { background: var(--card-hi); }
+.con-head img { height: 30px; width: 44px; object-fit: contain; }
+.con-head .tag { min-width: 44px; height: 28px; display: grid; place-items: center; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); }
+.con-head .n { font-size: 13px; font-weight: 600; color: var(--muted); background: var(--card-hi); border-radius: 10px; padding: 1px 8px; }

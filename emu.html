@@ -396,7 +396,19 @@
           var left = total ? est(done / total) : "";
           if (performance.now() - shown > 400) { eta.textContent = left; shown = performance.now(); }  // calm updates
         }).then(function (file) { eta.textContent = ""; txt.textContent = "Starting…"; start(file, g); })
-          .catch(function (e) { show(g.title, /^Only \d|incomplete/.test(e.message) ? e.message : "Download failed. " + e.message); });
+          .catch(function (e) {
+            // A file that isn't there any more (404): the game's files were changed on GitHub since the
+            // list was saved in this browser. Get the list again and start over once.
+            if (/\(404\)/.test(e.message) && !g.retried) {
+              txt.textContent = "The game's files changed on GitHub. Getting the new list…";
+              return FrutiLibrary.load(true).then(function (games) {
+                var fresh = games.filter(function (x) { return x.id === g.id; })[0];
+                if (!fresh) { show(g.title, "This game is not in the library any more."); return; }
+                fresh.retried = true; downloadAndStart(fresh);
+              }).catch(function () { show(g.title, "Download failed. " + e.message); });
+            }
+            show(g.title, /^Only \d|incomplete/.test(e.message) ? e.message : "Download failed. " + e.message);
+          });
       }
     })();
   </script>

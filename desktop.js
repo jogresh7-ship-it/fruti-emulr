@@ -151,6 +151,23 @@
     box.appendChild(tabs);
     const list = ui.tab === "recent" ? recent : ui.tab === "covers" ? withCover : [...games].sort((a, b) => a.title.localeCompare(b.title));
     if (!list.length) { box.appendChild(h("div", "note", ui.tab === "recent" ? "Nothing played yet. Pick a game below or from your library." : "No games here yet.")); return; }
+    if (ui.tab === "all") {
+      // One area per console (in the console list's order), each with its own heading
+      const ORDER = ["psx", "ps2", "psp", "nds", "gba", "gb", "n64", "snes"];
+      const rank = (c) => { const i = ORDER.indexOf(c.id); return i < 0 ? 99 : i; };
+      [...CONSOLES].sort((a, b) => rank(a) - rank(b)).forEach((c) => {
+        const mine = list.filter((g) => g.console === c.id);
+        if (!mine.length) return;
+        const sec = h("section", "con-sec");
+        const head = h("button", "con-head", `${c.icon ? `<img src="${esc(abs(c.icon))}" alt="">` : `<span class="tag">${esc(c.tag)}</span>`}<span>${esc(c.name)}</span><span class="n">${mine.length}</span>`);
+        head.title = "Show only " + c.name + " games";
+        head.onclick = () => { ui.page = "catalogue"; ui.filters = [c.id]; saveUi(); render(); $("#content").scrollTop = 0; };
+        sec.appendChild(head);
+        const grid = h("div", "cards boxes"); mine.forEach((g) => grid.appendChild(card(g))); sec.appendChild(grid);
+        box.appendChild(sec);
+      });
+      return;
+    }
     const grid = h("div", "cards boxes"); list.forEach((g) => grid.appendChild(card(g))); box.appendChild(grid);
   }
 

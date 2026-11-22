@@ -45,8 +45,52 @@
    "size": 21688982
   },
   {
+   "path": "rom/GB/Pokemon - Red Version (UE)[!].zip",
+   "size": 380810
+  },
+  {
+   "path": "rom/GB/Pokemon_ Blue Version.zip",
+   "size": 367922
+  },
+  {
+   "path": "rom/GB/Pokemon_ Yellow Version - Special Pikachu Edition.zip",
+   "size": 494853
+  },
+  {
    "path": "rom/GB/README.md",
    "size": 711
+  },
+  {
+   "path": "rom/GBA/Legend of Zelda, The_ The Minish Cap.jpeg",
+   "size": 17321
+  },
+  {
+   "path": "rom/GBA/Legend of Zelda, The_ The Minish Cap.zip",
+   "size": 7253236
+  },
+  {
+   "path": "rom/GBA/Pokemon - Emerald Version (USA, Europe).jpeg",
+   "size": 18579
+  },
+  {
+   "path": "rom/GBA/Pokemon - Emerald Version (USA, Europe).zip",
+   "size": 6791080
+  },
+  {
+   "path": "rom/GBA/Pokemon - Leaf Green Version (U) (V1.1).jpg",
+   "size": 32194
+  },
+  {
+   "path": "rom/GBA/Pokemon - Leaf Green Version (U) (V1.1).zip",
+   "size": 5329069
+  },
+  {
+   "path": "rom/GBA/Pokemon_ FireRed Version.jpeg",
+   "size": 18208
+  },
+  {
+   "path": "rom/GBA/Pokemon_ FireRed Version.zip",
+   "size": 5192434
   },
   {
    "path": "rom/GBA/README.md",
@@ -59,6 +103,22 @@
   {
    "path": "rom/Genesis/README.md",
    "size": 721
+  },
+  {
+   "path": "rom/Genesis/Sonic The Hedgehog (USA, Europe).jpg",
+   "size": 40992
+  },
+  {
+   "path": "rom/Genesis/Sonic The Hedgehog (USA, Europe).zip",
+   "size": 386937
+  },
+  {
+   "path": "rom/Genesis/Sonic The Hedgehog 2 (World) (Rev A).jpg",
+   "size": 36832
+  },
+  {
+   "path": "rom/Genesis/Sonic The Hedgehog 2 (World) (Rev A).zip",
+   "size": 749666
   },
   {
    "path": "rom/Jaguar/README.md",
@@ -93,8 +153,116 @@
    "size": 725
   },
   {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part001.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part002.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part003.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part004.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part005.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part006.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part007.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part008.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part009.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part010.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part011.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part012.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part013.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part014.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part015.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/FIFA Soccer 2005.part016.zip",
+   "size": 20919052
+  },
+  {
+   "path": "rom/PS/FIFA Soccer 2005/cover.jpg",
+   "size": 18665
+  },
+  {
    "path": "rom/PS/README.md",
    "size": 703
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part001.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part002.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part003.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part004.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part005.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part006.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part007.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part008.zip",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/Dragon Ball Z - Budokai 3 (USA).7z.part009.zip",
+   "size": 25559040
+  },
+  {
+   "path": "rom/PS2/Dragon Ball Z - Budokai 3/cover.jpg",
+   "size": 39460
   },
   {
    "path": "rom/PS2/README.md",
@@ -321,108 +489,156 @@
    "size": 31156
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part001.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part001.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part002.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part002.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part003.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part003.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part004.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part004.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part005.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part005.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part006.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part006.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part007.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part007.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part008.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part008.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part009.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part009.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part010.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part010.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part011.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part011.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part012.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part012.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part013.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part013.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part014.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part014.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part015.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part015.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part016.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part016.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part017.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part017.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part018.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part018.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part019.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part019.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part020.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part020.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part021.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part021.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part022.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part022.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part023.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part023.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part024.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part024.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part025.zip",
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part025.cso",
    "size": 26214400
   },
   {
-   "path": "rom/PSP/NBA 2K13/NBA 2K13 (1).part026.zip",
-   "size": 22878659
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part026.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part027.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part028.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part029.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part030.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part031.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part032.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part033.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part034.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part035.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part036.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part037.cso",
+   "size": 26214400
+  },
+  {
+   "path": "rom/PSP/NBA 2K13/NBA 2K13.part038.cso",
+   "size": 19264914
   },
   {
    "path": "rom/PSP/NBA 2K13/cover.jpg",
@@ -491,6 +707,14 @@
   {
    "path": "rom/SNES/README.md",
    "size": 704
+  },
+  {
+   "path": "rom/SNES/Super Mario World (U) [!].jpg",
+   "size": 76440
+  },
+  {
+   "path": "rom/SNES/Super Mario World (U) [!].zip",
+   "size": 347370
   },
   {
    "path": "rom/Saturn/README.md",
