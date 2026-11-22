@@ -273,9 +273,10 @@
       CONSOLES.forEach((c) => sel.appendChild(new Option(c.name, c.id)));
     }
     $("#imp-form").reset(); impCover = null; showPrev(""); $("#imp-err").hidden = true;
+    ownerUi();
     $("#imp").hidden = false; $("#imp-rom").focus();
   }
-  function closeImport() { $("#imp").hidden = true; }
+  function closeImport() { $("#imp").hidden = true; $("#owner").hidden = true; }
   function showPrev(url) { const p = $("#imp-prev"); p.style.backgroundImage = url ? `url("${url}")` : ""; p.classList.toggle("has", !!url); }
   function impError(msg) { const e = $("#imp-err"); e.textContent = msg; e.hidden = !msg; }
   $("#import").onclick = openImport;
@@ -308,11 +309,23 @@
     if (!impCover && !url) return impError("Add a cover picture: choose a PNG / JPG, or paste a link to one.");
     if (url && !/^https?:\/\/\S+$/i.test(url)) return impError("The picture link must start with https://");
     if (con === "ps2" && /\.(zip|7z|rar)$/i.test(rom.name)) return impError("PS2 games can't be zipped: import the .iso (or .cso / .chd) instead.");
-    const btn = $("#imp-save"); btn.disabled = true; btn.textContent = "Saving…";
+    const btn = $("#imp-save");
+    btn.disabled = true;
+    incompleteMsg(rom).catch(() => "").then((bad) => { btn.disabled = false; if (bad) impError(bad); else finishImport(); });
+    function finishImport() {
+    if (ownerToken() && (document.querySelector('input[name="dest"]:checked') || {}).value === "github") {
+      btn.disabled = true; btn.textContent = "Uploading…";
+      return ghUpload({ rom, con, title, cover: impCover, coverUrl: impCover ? "" : url })
+        .then((n) => { closeImport(); toast(`Uploaded ${title} to GitHub (${n} file${n === 1 ? "" : "s"}). It shows for everyone in a minute.`); setTimeout(() => load(true), 1500); })
+        .catch((err) => impError(err.message || String(err)))
+        .then(() => { btn.disabled = false; btn.textContent = "Upload"; $("#imp-prog").hidden = true; });
+    }
+    btn.disabled = true; btn.textContent = "Saving…";
     FrutiLibrary.local.add({ title, console: con, fileName: rom.name, size: rom.size, rom, coverBlob: impCover || null, coverUrl: impCover ? "" : url })
       .then(() => { closeImport(); toast(`Imported ${title}. It's saved in this browser.`); ui.page = "catalogue"; saveUi(); load(false); })
       .catch((err) => impError("Couldn't save it: " + (err && err.message || err) + (rom.size > 1073741824 ? " Big games may not fit in the browser's storage." : "")))
       .then(() => { btn.disabled = false; btn.textContent = "Import"; });
+    }
   };
 
   // ---------- Events ----------
@@ -327,10 +340,122 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $("#search").focus(); }
     if (e.key === "Escape" && !$("#imp").hidden) { closeImport(); return; }
+    if (e.key === "Escape" && !$("#req").hidden) { closeReq(); return; }
     if (e.key === "Escape") { $("#search").value = ""; $("#search").blur(); document.body.classList.remove("menu-open"); render(); }
   });
   // Coming back from a game (back button / bfcache): refresh play times
   addEventListener("pageshow", () => { times = store.get("times", {}); history = store.get("history", []); if (state === "ok") render(); });
+
+  // ---------- Owner: upload to GitHub (cut into parts) ----------
+  const MB = 1048576, PART = 25 * MB;
+  const ownerToken = () => { try { return localStorage.getItem("fruti:gh-token") || ""; } catch { return ""; } };
+  function ownerUi() {
+    const on = !!ownerToken();
+    $("#imp-dest").hidden = !on;
+    $("#owner-off").hidden = !on;
+    $("#owner-toggle").textContent = on ? "GitHub connected ✓" : "Owner: upload to GitHub";
+    const dest = (document.querySelector('input[name="dest"]:checked') || {}).value;
+    $("#imp-save").textContent = on && dest === "github" ? "Upload" : "Import";
+    $(".dlg-note").textContent = on && dest === "github"
+      ? "Checked, cut into 25 MB parts and uploaded to your GitHub repo (rom/<console>/<game>/). Everyone will see it."
+      : "Saved only in this browser, on this device. Nothing is uploaded and nobody else sees it.";
+  }
+  document.querySelectorAll('input[name="dest"]').forEach((r) => r.onchange = ownerUi);
+  $("#owner-toggle").onclick = () => { $("#owner").hidden = !$("#owner").hidden; $("#owner-msg").textContent = ""; };
+  $("#owner-off").onclick = () => { try { localStorage.removeItem("fruti:gh-token"); } catch {} $("#owner-msg").textContent = "Disconnected."; ownerUi(); };
+  $("#owner-save").onclick = () => {
+    const t = $("#owner-token").value.trim(), R = FrutiLibrary.repo;
+    if (!t) { $("#owner-msg").textContent = "Paste the token first."; return; }
+    $("#owner-msg").textContent = "Checking…";
+    fetch(`https://api.github.com/repos/${R.owner}/${R.name}`, { headers: { Authorization: "Bearer " + t, Accept: "application/vnd.github+json" } })
+      .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => {
+        if (!ok) throw new Error(j.message || "Token not accepted");
+        if (!j.permissions || !j.permissions.push) throw new Error("This token can't write to " + R.name + ". Give it Contents: Read and write.");
+        try { localStorage.setItem("fruti:gh-token", t); } catch {}
+        $("#owner-token").value = ""; $("#owner-msg").textContent = "Connected to " + R.owner + "/" + R.name + " ✓"; ownerUi();
+        const gh = document.querySelector('input[name="dest"][value="github"]'); gh.checked = true; ownerUi();
+      })
+      .catch((e) => { $("#owner-msg").textContent = "Not connected: " + e.message; });
+  };
+
+  // Is the file complete? (catches downloads that stopped early) -> message or ""
+  const u32 = (b, i) => (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0;
+  const u64 = (b, i) => u32(b, i) + u32(b, i + 4) * 4294967296;
+  const bytesOf = (f, a, z) => f.slice(a, z).arrayBuffer().then((x) => new Uint8Array(x));
+  async function incompleteMsg(f) {
+    const b = await bytesOf(f, 0, 64), cut = (need) => `This file is incomplete: only ${mb(f.size)} of ${mb(need)}. The download stopped early; download it again.`;
+    if (b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf) { const need = 32 + u64(b, 12) + u64(b, 20); return f.size < need ? cut(need) : ""; }
+    if (b[0] === 0x50 && b[1] === 0x4b) {
+      const t = await bytesOf(f, Math.max(0, f.size - 65600), f.size);
+      for (let i = t.length - 22; i >= 0; i--) if (t[i] === 0x50 && t[i + 1] === 0x4b && t[i + 2] === 5 && t[i + 3] === 6) return "";
+      return "This zip is incomplete (its end is missing). The download stopped early; download it again.";
+    }
+    if (b[0] === 0x43 && b[1] === 0x49 && b[2] === 0x53 && b[3] === 0x4f) {
+      const n = Math.ceil(u64(b, 8) / (u32(b, 16) || 2048)), t = await bytesOf(f, 24 + n * 4, 28 + n * 4), end = t.length ? u32(t, 0) & 0x7fffffff : f.size + 1;
+      return f.size < end ? cut(end) : "";
+    }
+    const t = await bytesOf(f, 0x8000, 0x8100);
+    if (t.length >= 0x84 && String.fromCharCode(t[1], t[2], t[3], t[4], t[5]) === "CD001") { const need = u32(t, 0x50) * ((t[0x80] | t[0x81] << 8) || 2048); return f.size < need ? cut(need) : ""; }
+    return "";
+  }
+  const b64 = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
+  async function ghUpload({ rom, con, title, cover, coverUrl }) {
+    const R = FrutiLibrary.repo, api = `https://api.github.com/repos/${R.owner}/${R.name}`;
+    const H = { Authorization: "Bearer " + ownerToken(), Accept: "application/vnd.github+json", "Content-Type": "application/json" };
+    const call = (path, opts) => fetch(api + path, Object.assign({ headers: H }, opts)).then((r) => r.json().then((j) => { if (!r.ok) throw new Error(`GitHub: ${j.message || r.status}`); return j; }));
+    const prog = $("#imp-prog"), bar = prog.querySelector("i"), note = prog.querySelector("small");
+    const say = (t, p) => { prog.hidden = false; note.textContent = t; if (p != null) bar.style.width = Math.round(p * 100) + "%"; };
+    say("Checking the file…", 0);
+    const bad = await incompleteMsg(rom); if (bad) throw new Error(bad);
+    const c = consoleOf(con), name = title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+    const ext = (/\.[a-z0-9]+$/i.exec(rom.name) || [""])[0].toLowerCase();
+    const dir = `rom/${c.folder || c.tag}/${name}/`;
+    const n = Math.max(1, Math.ceil(rom.size / PART)), tree = [];
+    for (let i = 0; i < n; i++) {
+      say(`Uploading part ${i + 1} of ${n}…`, i / (n + 1));
+      const content = await b64(rom.slice(i * PART, Math.min(rom.size, (i + 1) * PART)));
+      const blob = await call("/git/blobs", { method: "POST", body: JSON.stringify({ content, encoding: "base64" }) });
+      const file = n === 1 ? name + ext : `${name}.part${String(i + 1).padStart(3, "0")}${ext}`;
+      tree.push({ path: dir + file, mode: "100644", type: "blob", sha: blob.sha });
+    }
+    let pic = cover;
+    if (!pic && coverUrl) { try { const r = await fetch(coverUrl); if (r.ok) pic = await r.blob(); } catch {} }
+    if (pic) {
+      const pext = /png/.test(pic.type) ? ".png" : /webp/.test(pic.type) ? ".webp" : ".jpg";
+      const blob = await call("/git/blobs", { method: "POST", body: JSON.stringify({ content: await b64(pic), encoding: "base64" }) });
+      tree.push({ path: dir + "cover" + pext, mode: "100644", type: "blob", sha: blob.sha });
+    }
+    say("Saving to GitHub…", n / (n + 1));
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const ref = await call("/git/ref/heads/main"), base = await call("/git/commits/" + ref.object.sha);
+      const t = await call("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: base.tree.sha, tree }) });
+      const cm = await call("/git/commits", { method: "POST", body: JSON.stringify({ message: `Add ${name} (${c.name})`, tree: t.sha, parents: [ref.object.sha] }) });
+      try { await call("/git/refs/heads/main", { method: "PATCH", body: JSON.stringify({ sha: cm.sha }) }); say("Done.", 1); return tree.length; }
+      catch (e) { if (attempt === 2) throw e; }   // main moved meanwhile: try again on top of it
+    }
+  }
+
+  // ---------- Request a game (opens a ready-filled GitHub issue) ----------
+  $("#request").onclick = () => {
+    const sel = $("#req-console");
+    if (!sel.options.length) { sel.appendChild(new Option("Choose the console…", "")); CONSOLES.forEach((c) => sel.appendChild(new Option(c.name, c.id))); }
+    $("#req-form").reset(); $("#req-err").hidden = true; $("#req").hidden = false; $("#req-title").focus();
+  };
+  const closeReq = () => { $("#req").hidden = true; };
+  $("#req-close").onclick = $("#req-cancel").onclick = closeReq;
+  $("#req").addEventListener("mousedown", (e) => { if (e.target.id === "req") closeReq(); });
+  $("#req-form").onsubmit = (e) => {
+    e.preventDefault();
+    const t = $("#req-title").value.trim(), c = $("#req-console").value, note = $("#req-note").value.trim();
+    const err = (m) => { $("#req-err").textContent = m; $("#req-err").hidden = false; };
+    if (!t) return err("Type the game's name.");
+    if (!c) return err("Choose the console.");
+    const R = FrutiLibrary.repo, con = consoleOf(c);
+    const body = `**Game:** ${t}\n**Console:** ${con.name}\n` + (note ? `**Notes:** ${note}\n` : "") + "\n_Sent from the Fruti game launcher's Request button._";
+    window.open(`https://github.com/${R.owner}/${R.name}/issues/new?title=${encodeURIComponent("Game request: " + t + " (" + con.tag + ")")}&body=${encodeURIComponent(body)}`, "_blank", "noopener");
+    closeReq(); toast("Opening your request on GitHub. Press Submit there to send it.");
+  };
 
   // ---------- 3D tilt + light shine that follow the mouse over a game box ----------
   if (matchMedia("(hover: hover) and (pointer: fine)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches) {

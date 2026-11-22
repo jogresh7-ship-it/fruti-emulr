@@ -347,3 +347,26 @@ body.scrolled .header { background: rgba(21,21,21,.78); backdrop-filter: saturat
 .page { animation: fadein .45s var(--ease) both; }
 .card, .row, .con-head { animation-duration: .7s; animation-timing-function: var(--ease); }
 @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.97); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* Import: save-to choice, upload progress, owner GitHub connection; Request dialog */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.seg label { display: grid; gap: 2px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--dark); cursor: pointer; transition: border-color .25s, background .25s; }
+.seg label:has(input:checked) { border-color: #fff; background: var(--card-hi); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg b { color: var(--strong); font-size: 14px; }
+.imp-prog { display: grid; gap: 6px; }
+.imp-prog .bar { height: 8px; border-radius: 4px; background: var(--dark); overflow: hidden; }
+.imp-prog .bar i { display: block; height: 100%; width: 0; background: #fff; transition: width .3s var(--ease, ease); }
+.imp-prog small { color: var(--muted); font-size: 12px; }
+.owner { display: grid; gap: 8px; padding: 12px; border-radius: 8px; border: 1px dashed var(--border); }
+.owner b { color: var(--strong); }
+.owner small { color: var(--muted); font-size: 12px; }
+.owner input { height: 36px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--dark); color: var(--strong); font: inherit; }
+.owner-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.owner-row .btn { height: 34px; padding: 0 14px; }
+#owner-msg { font-size: 12px; color: var(--muted); }
+.linkbtn { color: var(--muted); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.linkbtn:hover { color: var(--strong); }
+.dlg-foot { align-items: center; }
+.dlg-foot .grow { flex: 1; }
+@media (max-width: 520px) { .seg { grid-template-columns: 1fr; } }
