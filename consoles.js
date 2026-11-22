@@ -18,7 +18,7 @@ window.FRUTI_CONSOLES = [
   { id: "segaGG",     name: "Sega Game Gear",     tag: "GG",   folder: "Game Gear", icon: "icons/segaGG.png",      box: 0.8,  ext: [".gg"] },
   { id: "sega32x",    name: "Sega 32X",           tag: "32X",  folder: "32X", icon: "icons/sega32x.png?v=2",            box: 0.7,  ext: [".32x"] },
   { id: "segaSaturn", name: "Sega Saturn",        tag: "SAT",  folder: "Saturn", icon: "icons/segaSaturn.png",         box: 0.62, ext: [".cue", ".chd", ".iso", ".ccd"] },
-  { id: "jaguar",     name: "Atari Jaguar",       tag: "JAG",  folder: "Jaguar",         box: 0.72, ext: [".j64", ".jag"] },
-  { id: "ws",         name: "WonderSwan",         tag: "WS",   folder: "WonderSwan",     box: 0.8,  ext: [".ws", ".wsc"] },
+  { id: "jaguar",     name: "Atari Jaguar",       tag: "JAG",  folder: "Jaguar", icon: "icons/jaguar.png", box: 0.72, ext: [".j64", ".jag"] },
+  { id: "ws",         name: "WonderSwan",         tag: "WS",   folder: "WonderSwan", icon: "icons/ws.png", box: 0.8,  ext: [".ws", ".wsc"] },
   { id: "pce",        name: "PC Engine / TurboGrafx-16", tag: "PCE", folder: "PC Engine", box: 0.75, ext: [".pce"] }
 ];
