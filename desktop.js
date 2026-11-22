@@ -309,10 +309,12 @@
     if (!impCover && !url) return impError("Add a cover picture: choose a PNG / JPG, or paste a link to one.");
     if (url && !/^https?:\/\/\S+$/i.test(url)) return impError("The picture link must start with https://");
     if (/\.(7z|zip|rar)\.\d{3}$|\.\d{3}$|\.part\d+\.rar$/i.test(rom.name)) return impError("This is one piece of a split archive (" + rom.name + "). Open it with 7-Zip with all its pieces in the same folder, extract the game, and import the extracted file instead.");
-    if (con === "ps2" && /\.(zip|7z|rar)$/i.test(rom.name)) return impError("PS2 games can't be zipped: extract it with 7-Zip and import the .iso (or .cso / .chd) instead.");
+    const toGitHub = ownerToken() && (document.querySelector('input[name="dest"]:checked') || {}).value === "github";
+    if (con === "ps2" && /\.rar$/i.test(rom.name)) return impError("PS2 games can't be .rar: extract it with 7-Zip and import the .iso instead.");
+    if (con === "ps2" && !toGitHub && /\.(zip|7z)$/i.test(rom.name)) return impError("PS2 games can't be zipped when saved in this browser: extract it with 7-Zip and import the .iso. (Uploading to GitHub works: GitHub unpacks it for you.)");
     const btn = $("#imp-save");
     btn.disabled = true;
-    const archiveFor = () => con !== "ps2" ? Promise.resolve("") : bytesOf(rom, 0, 4).then((b) =>
+    const archiveFor = () => con !== "ps2" || toGitHub ? Promise.resolve("") : bytesOf(rom, 0, 4).then((b) =>
       (b[0] === 0x37 && b[1] === 0x7a) || (b[0] === 0x50 && b[1] === 0x4b) || (b[0] === 0x52 && b[1] === 0x61)
         ? "This PS2 game is inside an archive (zip / 7z / rar). Extract it with 7-Zip and import the .iso instead: the PS2 player can't read archives." : "");
     Promise.all([incompleteMsg(rom).catch(() => ""), archiveFor().catch(() => "")]).then((r) => r[0] || r[1]).then((bad) => { btn.disabled = false; if (bad) impError(bad); else finishImport(); });
@@ -320,7 +322,13 @@
     if (ownerToken() && (document.querySelector('input[name="dest"]:checked') || {}).value === "github") {
       btn.disabled = true; btn.textContent = "Uploading…";
       return ghUpload({ rom, con, title, cover: impCover, coverUrl: impCover ? "" : url })
-        .then((n) => { closeImport(); toast(`Uploaded ${title} to GitHub (${n} file${n === 1 ? "" : "s"}). It shows for everyone in a minute.`); setTimeout(() => load(true), 1500); })
+        .then((n) => {
+          closeImport();
+          toast(converting === "started" ? `Uploaded ${title}. GitHub is now unpacking it into a playable disc: it's ready in about 10–20 minutes (press ↻ then).`
+            : converting === "manual" ? `Uploaded ${title}. To make it playable, start "Make big PSP games playable" in your repo's Actions tab (your token can't start it).`
+            : `Uploaded ${title} to GitHub (${n} file${n === 1 ? "" : "s"}). It shows for everyone in a minute.`);
+          setTimeout(() => load(true), 1500);
+        })
         .catch((err) => impError(err.message || String(err)))
         .then(() => { btn.disabled = false; btn.textContent = "Upload"; $("#imp-prog").hidden = true; });
     }
@@ -411,7 +419,10 @@
     return "";
   }
   const b64 = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
+  let converting = "";
+  const archiveKind = (f) => bytesOf(f, 0, 4).then((b) => b[0] === 0x37 && b[1] === 0x7a ? "7z" : b[0] === 0x50 && b[1] === 0x4b ? "zip" : "");
   async function ghUpload({ rom, con, title, cover, coverUrl }) {
+    converting = "";
     const R = FrutiLibrary.repo, api = `https://api.github.com/repos/${R.owner}/${R.name}`;
     const H = { Authorization: "Bearer " + ownerToken(), Accept: "application/vnd.github+json", "Content-Type": "application/json" };
     const call = (path, opts) => fetch(api + path, Object.assign({ headers: H }, opts)).then((r) => r.json().then((j) => { if (!r.ok) throw new Error(/not accessible by (personal access|integration)/i.test(j.message || "")
@@ -471,7 +482,16 @@
       }
       const t = await call("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: base.tree.sha, tree: entries }) });
       const cm = await call("/git/commits", { method: "POST", body: JSON.stringify({ message: `Add ${name} (${c.name})`, tree: t.sha, parents: [ref.object.sha] }) });
-      try { await call("/git/refs/heads/main", { method: "PATCH", body: JSON.stringify({ sha: cm.sha }) }); say("Done.", 1); return tree.length; }
+      try {
+        await call("/git/refs/heads/main", { method: "PATCH", body: JSON.stringify({ sha: cm.sha }) });
+        // A zipped PS2 game (or big zipped PSP game): have GitHub unpack it into a playable disc
+        if ((con === "ps2" || (con === "psp" && rom.size > 400 * MB)) && /^(7z|zip)$/.test(await archiveKind(rom))) {
+          say("Asking GitHub to unpack it into a playable disc…", 1);
+          const r = await fetch(api + "/actions/workflows/psp-cso.yml/dispatches", { method: "POST", headers: H, body: JSON.stringify({ ref: "main", inputs: { game: name } }) });
+          converting = r.ok ? "started" : "manual";
+        }
+        say("Done.", 1); return tree.length;
+      }
       catch (e) { if (attempt === 2) throw e; }   // main moved meanwhile: try again on top of it
     }
   }

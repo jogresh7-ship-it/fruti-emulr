@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Turn big PSP games that were uploaded as .7z / .zip (whole or in parts) into .cso parts.
+"""Turn big PSP games, and every PS2 game, uploaded as .7z / .zip (whole or in parts) into .cso parts.
+
+PS2: the PS2 player reads the disc while playing and can't look inside archives, so any zipped
+PS2 game is converted (to .iso parts when the .cso would be over 2 GB, the CSO format's limit).
 
 Browsers can't unpack PSP games bigger than about 1 GB (they run out of memory), but the PSP
 emulator reads .cso (a compressed ISO) directly, without unpacking. This runs on GitHub Actions:
@@ -79,6 +82,10 @@ def comp(chunk):
     return chunk, out
 
 
+class TooBig(Exception):
+    pass
+
+
 def iso_to_cso(src, dst):
     size = os.path.getsize(src)
     n = (size + BS - 1) // BS
@@ -95,7 +102,7 @@ def iso_to_cso(src, dst):
                     idx.append(pos); o.write(d); pos += len(d)
         idx.append(pos)
         if pos >= 0x80000000:
-            raise SystemExit('CSO would be over 2 GB: ' + src)
+            raise TooBig(src)
         o.seek(24)
         o.write(struct.pack('<%dI' % len(idx), *idx))
 
@@ -115,7 +122,20 @@ def verify_cso(cso, iso):
                 raise SystemExit('CSO check failed at block %d: %s' % (k, cso))
 
 
-def convert(folder):
+def split(path, folder, base, ext):
+    k = 0
+    with open(path, 'rb') as f:
+        while True:
+            b = f.read(PART)
+            if not b:
+                break
+            k += 1
+            with open(os.path.join(folder, '%s.part%03d.%s' % (base, k, ext)), 'wb') as o:
+                o.write(b)
+    return k
+
+
+def convert(folder, limit, iso_ok):
     files = game_files(folder)
     if not files or files[0].lower().endswith('.cso'):
         return False
@@ -130,29 +150,29 @@ def convert(folder):
                 with open(p, 'rb') as f:
                     shutil.copyfileobj(f, out, 16 * 1024 * 1024)
         iso = listed_iso(archive)
-        if not iso or iso[1] <= LIMIT or not iso[0].lower().endswith('.iso'):
+        if not iso or iso[1] <= limit or not iso[0].lower().endswith('.iso'):
             return False
         print('::group::Converting %s (%s, %d MB unpacked)' % (folder, os.path.basename(iso[0]), iso[1] >> 20), file=sys.stderr)
         subprocess.run(['7z', 'e', '-y', '-o' + work, archive, iso[0]], check=True, stdout=subprocess.DEVNULL)
         os.remove(archive)
         iso_path = os.path.join(work, os.path.basename(iso[0]))
         cso = os.path.join(work, 'game.cso')
-        iso_to_cso(iso_path, cso)
-        verify_cso(cso, iso_path)
-        os.remove(iso_path)
-        for p in files:
-            os.remove(p)
         base = os.path.basename(os.path.normpath(folder))
-        with open(cso, 'rb') as f:
-            k = 0
-            while True:
-                b = f.read(PART)
-                if not b:
-                    break
-                k += 1
-                with open(os.path.join(folder, '%s.part%03d.cso' % (base, k)), 'wb') as o:
-                    o.write(b)
-        print('  -> %d .cso parts' % k, file=sys.stderr)
+        try:
+            iso_to_cso(iso_path, cso)
+            verify_cso(cso, iso_path)
+            os.remove(iso_path)
+            for p in files:
+                os.remove(p)
+            k = split(cso, folder, base, 'cso')
+            print('  -> %d .cso parts' % k, file=sys.stderr)
+        except TooBig:
+            if not iso_ok:
+                raise SystemExit('CSO would be over 2 GB: ' + folder)
+            for p in files:
+                os.remove(p)
+            k = split(iso_path, folder, base, 'iso')
+            print('  -> %d .iso parts (too big for .cso)' % k, file=sys.stderr)
         print('::endgroup::', file=sys.stderr)
         return True
     finally:
@@ -162,8 +182,10 @@ def convert(folder):
 if __name__ == '__main__':
     root = sys.argv[1] if len(sys.argv) > 1 else '.'
     only = os.environ.get('ONLY_GAME', '').strip().strip('/')
-    for folder in sorted(glob.glob(os.path.join(root, 'rom', 'PSP', '*', ''))):
-        if only and os.path.basename(os.path.normpath(folder)) != only:
-            continue
-        if convert(folder):
-            print(os.path.relpath(folder, root).rstrip('/'))
+    # PSP: only games too big to unpack in a browser. PS2: every zipped game.
+    for console, limit, iso_ok in (('PSP', LIMIT, False), ('PS2', 0, True)):
+        for folder in sorted(glob.glob(os.path.join(root, 'rom', console, '*', ''))):
+            if only and os.path.basename(os.path.normpath(folder)) != only:
+                continue
+            if convert(folder, limit, iso_ok):
+                print(os.path.relpath(folder, root).rstrip('/'))
