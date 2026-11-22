@@ -308,10 +308,14 @@
     if (!title) return impError("Type the game's name.");
     if (!impCover && !url) return impError("Add a cover picture: choose a PNG / JPG, or paste a link to one.");
     if (url && !/^https?:\/\/\S+$/i.test(url)) return impError("The picture link must start with https://");
-    if (con === "ps2" && /\.(zip|7z|rar)$/i.test(rom.name)) return impError("PS2 games can't be zipped: import the .iso (or .cso / .chd) instead.");
+    if (/\.(7z|zip|rar)\.\d{3}$|\.\d{3}$|\.part\d+\.rar$/i.test(rom.name)) return impError("This is one piece of a split archive (" + rom.name + "). Open it with 7-Zip with all its pieces in the same folder, extract the game, and import the extracted file instead.");
+    if (con === "ps2" && /\.(zip|7z|rar)$/i.test(rom.name)) return impError("PS2 games can't be zipped: extract it with 7-Zip and import the .iso (or .cso / .chd) instead.");
     const btn = $("#imp-save");
     btn.disabled = true;
-    incompleteMsg(rom).catch(() => "").then((bad) => { btn.disabled = false; if (bad) impError(bad); else finishImport(); });
+    const archiveFor = () => con !== "ps2" ? Promise.resolve("") : bytesOf(rom, 0, 4).then((b) =>
+      (b[0] === 0x37 && b[1] === 0x7a) || (b[0] === 0x50 && b[1] === 0x4b) || (b[0] === 0x52 && b[1] === 0x61)
+        ? "This PS2 game is inside an archive (zip / 7z / rar). Extract it with 7-Zip and import the .iso instead: the PS2 player can't read archives." : "");
+    Promise.all([incompleteMsg(rom).catch(() => ""), archiveFor().catch(() => "")]).then((r) => r[0] || r[1]).then((bad) => { btn.disabled = false; if (bad) impError(bad); else finishImport(); });
     function finishImport() {
     if (ownerToken() && (document.querySelector('input[name="dest"]:checked') || {}).value === "github") {
       btn.disabled = true; btn.textContent = "Uploading…";
@@ -372,6 +376,13 @@
       .then(({ ok, j }) => {
         if (!ok) throw new Error(j.message || "Token not accepted");
         if (!j.permissions || !j.permissions.push) throw new Error("This token can't write to " + R.name + ". Give it Contents: Read and write.");
+        // Make sure the token itself may write (a tiny test blob; it's never added to any folder)
+        return fetch(`https://api.github.com/repos/${R.owner}/${R.name}/git/blobs`, { method: "POST",
+          headers: { Authorization: "Bearer " + t, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ content: "fruti write check", encoding: "utf-8" }) })
+          .then((r) => { if (!r.ok) throw new Error("this token can only read. On GitHub, edit the token: Repository permissions → Contents → Read and write, then click Connect again."); return j; });
+      })
+      .then((j) => {
         try { localStorage.setItem("fruti:gh-token", t); } catch {}
         $("#owner-token").value = ""; $("#owner-msg").textContent = "Connected to " + R.owner + "/" + R.name + " ✓"; ownerUi();
         const gh = document.querySelector('input[name="dest"][value="github"]'); gh.checked = true; ownerUi();
@@ -403,7 +414,9 @@
   async function ghUpload({ rom, con, title, cover, coverUrl }) {
     const R = FrutiLibrary.repo, api = `https://api.github.com/repos/${R.owner}/${R.name}`;
     const H = { Authorization: "Bearer " + ownerToken(), Accept: "application/vnd.github+json", "Content-Type": "application/json" };
-    const call = (path, opts) => fetch(api + path, Object.assign({ headers: H }, opts)).then((r) => r.json().then((j) => { if (!r.ok) throw new Error(`GitHub: ${j.message || r.status}`); return j; }));
+    const call = (path, opts) => fetch(api + path, Object.assign({ headers: H }, opts)).then((r) => r.json().then((j) => { if (!r.ok) throw new Error(/not accessible by (personal access|integration)/i.test(j.message || "")
+      ? "Your GitHub token can only read. On GitHub, edit the token: Repository permissions → Contents → Read and write (and make sure fruti-emulr is selected). Then try again."
+      : `GitHub: ${j.message || r.status}`); return j; }));
     const prog = $("#imp-prog"), bar = prog.querySelector("i"), note = prog.querySelector("small");
     const say = (t, p) => { prog.hidden = false; note.textContent = t; if (p != null) bar.style.width = Math.round(p * 100) + "%"; };
     say("Checking the file…", 0);
