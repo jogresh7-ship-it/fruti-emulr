@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PS2 - Fruti</title>
+  <link rel="stylesheet" href="fonts.css?v=1">
+  <style>
+    :root { --bg: #000; --panel: #151515; --line: #2e2e2e; --text: #f2f2f2; --dim: #9a9a9a; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+    #stage { position: fixed; inset: 0; display: grid; place-items: center; }
+    /* The emulator draws 640x480; scale it to fit the screen at 4:3 */
+    #outputCanvas { width: min(100vw, calc(100vh * 4 / 3)); height: min(100vh, calc(100vw * 3 / 4)); background: #000; outline: none; display: block; image-rendering: auto; }
+    .msg { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.82); padding: 20px; text-align: center; z-index: 5; }
+    .msg .box { max-width: 520px; display: grid; gap: 12px; justify-items: center; }
+    .msg b { font-size: 20px; }
+    .msg p { margin: 0; color: var(--dim); }
+    .msg img { max-height: 180px; max-width: 70vw; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+    .btn { border: 0; border-radius: 6px; background: #fff; color: #151515; font: 700 15px system-ui, sans-serif; padding: 11px 22px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn svg { width: 16px; height: 16px; }
+    .top { position: fixed; top: 10px; left: 10px; right: 10px; display: flex; gap: 8px; z-index: 6; transition: opacity .3s; pointer-events: none; }
+    .top > * { pointer-events: auto; }
+    .top.hide { opacity: 0; }
+    .tbtn { border: 1px solid var(--line); background: rgba(21,21,21,.85); color: var(--text); border-radius: 6px; padding: 7px 12px; font: 600 13px system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+    .fps { margin-left: auto; align-self: center; color: var(--dim); font: 12px ui-monospace, monospace; background: rgba(0,0,0,.5); padding: 3px 7px; border-radius: 4px; }
+    .controls { position: fixed; top: 52px; left: 10px; z-index: 6; background: rgba(21,21,21,.95); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 250px; }
+    .controls table { border-collapse: collapse; }
+    .controls td { padding: 3px 10px 3px 0; }
+    .controls td + td { color: var(--dim); }
+    .controls h4 { margin: 0 0 6px; font-size: 13px; }
+    .controls small { display: block; color: var(--dim); margin-top: 8px; max-width: 260px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="stage"><canvas id="outputCanvas" width="640" height="480" tabindex="-1"></canvas></div>
+  <div class="top" id="top">
+    <a class="tbtn" href="index.html">← Library</a>
+    <button class="tbtn" id="ctl-btn">Controls</button>
+    <span class="fps" id="fps" hidden></span>
+  </div>
+  <div class="controls" id="controls" hidden>
+    <h4>Keyboard</h4>
+    <table id="ctl-table"></table>
+    <small>A game controller works too: plug it in and press a button.</small>
+  </div>
+  <div class="msg" id="msg"><div class="box"><b>Loading…</b></div></div>
+
+  <script src="consoles.js?v=14"></script>
+  <script src="games.js?v=10"></script>
+  <script src="library.js?v=19"></script>
+  <script>
+  // PlayStation 2 player, using Play! (https://github.com/jpd002/Play-, BSD-2-Clause) built for the browser
+  // by the "Build PS2 emulator (Play!)" GitHub Action, in ps2/. The disc is read straight from the
+  // game's files on the site, piece by piece as the game asks for it (no full download first).
+  (function () {
+    "use strict";
+    var id = new URLSearchParams(location.search).get("game");
+    var $ = function (s) { return document.querySelector(s); };
+    var canvas = $("#outputCanvas");
+    var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+
+    function show(title, text, extra) {
+      var m = $("#msg"); m.hidden = false;
+      m.innerHTML = '<div class="box"><b>' + esc(title) + '</b>' + (text ? "<p>" + esc(text) + "</p>" : "") + '</div>';
+      if (extra) m.firstChild.appendChild(extra);
+      if (!extra) { var a = document.createElement("a"); a.className = "btn"; a.href = "index.html"; a.textContent = "Back to library"; if (text) m.firstChild.appendChild(a); }
+    }
+
+    // ---------- Keys: friendlier layout than Play!'s own, translated to the keys Play! listens for ----------
+    // (same layout as the PSP player: WASD stick, I J K L face buttons, Q / E shoulders)
+    var KEYMAP = {
+      KeyW: "KeyT", KeyA: "KeyF", KeyS: "KeyG", KeyD: "KeyH",           // left stick
+      ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",  // D-pad
+      KeyK: "KeyZ", KeyL: "KeyX", KeyJ: "KeyA", KeyI: "KeyS",           // ✕ ○ □ △
+      KeyQ: "Digit1", KeyE: "Digit8", Digit1: "Digit2", Digit3: "Digit9", // L1 R1 L2 R2
+      KeyZ: "Digit3", KeyC: "Digit0",                                   // L3 R3
+      KeyT: "KeyI", KeyF: "KeyJ", KeyG: "KeyK", KeyH: "KeyL",           // right stick (camera)
+      Numpad8: "KeyI", Numpad4: "KeyJ", Numpad5: "KeyK", Numpad6: "KeyL",
+      Enter: "Enter", KeyV: "Backspace", Backspace: "Backspace"         // Start, Select
+    };
+    var HELP = [["Move (left stick)", "W A S D"], ["Camera (right stick)", "T F G H  or  Numpad 8 4 5 6"], ["✕ Cross", "K"], ["○ Circle", "L"], ["□ Square", "J"], ["△ Triangle", "I"],
+      ["L1 / R1", "Q / E"], ["L2 / R2", "1 / 3"], ["L3 / R3", "Z / C"], ["D-pad", "Arrow keys"], ["Start", "Enter"], ["Select", "V"]];
+    $("#ctl-table").innerHTML = HELP.map(function (r) { return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + "</td></tr>"; }).join("");
+    $("#ctl-btn").onclick = function () { $("#controls").hidden = !$("#controls").hidden; canvas.focus(); };
+
+    var running = false, held = {};
+    function send(type, code) {
+      if (type === "keydown") { if (held[code]) return; held[code] = 1; } else { if (!held[code]) return; delete held[code]; }
+      canvas.dispatchEvent(new KeyboardEvent(type, { code: code, key: code, bubbles: true, cancelable: true }));
+    }
+    ["keydown", "keyup"].forEach(function (type) {
+      window.addEventListener(type, function (e) {
+        if (!running || !e.isTrusted) return;
+        if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+        var to = KEYMAP[e.code];
+        if (!to && !/^F\d+$/.test(e.code)) e.preventDefault();
+        if (!to) { e.stopImmediatePropagation(); return; }
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (e.repeat) return;
+        send(type, to);
+      }, true);
+    });
+
+    // ---------- Game controllers (Gamepad API, standard layout) -> the same keys ----------
+    var PAD_BUTTONS = { 0: "KeyZ", 1: "KeyX", 2: "KeyA", 3: "KeyS", 4: "Digit1", 5: "Digit8", 6: "Digit2", 7: "Digit9",
+      8: "Backspace", 9: "Enter", 10: "Digit3", 11: "Digit0", 12: "ArrowUp", 13: "ArrowDown", 14: "ArrowLeft", 15: "ArrowRight" };
+    var padHeld = {};
+    function padSet(code, on) { if (on && !padHeld[code]) { padHeld[code] = 1; send("keydown", code); } else if (!on && padHeld[code]) { delete padHeld[code]; send("keyup", code); } }
+    function pollPads() {
+      var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      var p = null; for (var i = 0; i < pads.length; i++) if (pads[i]) { p = pads[i]; break; }
+      if (p && running) {
+        Object.keys(PAD_BUTTONS).forEach(function (b) { var x = p.buttons[b]; padSet(PAD_BUTTONS[b], !!x && (x.pressed || x.value > 0.5)); });
+        var ax = p.axes, D = 0.45;
+        padSet("KeyF", ax[0] < -D); padSet("KeyH", ax[0] > D); padSet("KeyT", ax[1] < -D); padSet("KeyG", ax[1] > D);
+        padSet("KeyJ", ax[2] < -D); padSet("KeyL", ax[2] > D); padSet("KeyI", ax[3] < -D); padSet("KeyK", ax[3] > D);
+      }
+      requestAnimationFrame(pollPads);
+    }
+
+    // Buttons at the top hide while playing and come back when the mouse moves
+    var hideTimer;
+    function wake() { $("#top").classList.remove("hide"); clearTimeout(hideTimer); hideTimer = setTimeout(function () { if (running && $("#controls").hidden) $("#top").classList.add("hide"); }, 2500); }
+    addEventListener("mousemove", wake); addEventListener("touchstart", wake);
+
+    // ---------- The disc: read straight from the site, in 1 MB pieces, with a small cache ----------
+    var BLOCK = 1 << 20, KEEP = 96;
+    function RangeDisc(module, parts) {
+      this.module = module; this.parts = parts; this.done = false; this.cache = new Map(); this.loading = new Map();
+      var at = 0; parts.forEach(function (p) { p.start = at; at += p.size; }); this.size = at;
+      this.read = function (dst, offset, size) {
+        var self = this; self.done = false;
+        self.bytes(offset, size).then(function (b) { self.module.HEAPU8.set(b, dst); self.done = true; })
+          .catch(function (e) { fail("Couldn't read the game disc: " + e.message); });
+      };
+      this.getFileSize = function () { return this.size; };
+      this.isDone = function () { return this.done; };
+    }
+    RangeDisc.prototype.bytes = function (offset, size) {
+      var self = this, first = Math.floor(offset / BLOCK), last = Math.floor((offset + Math.max(size, 1) - 1) / BLOCK), want = [];
+      for (var n = first; n <= last; n++) want.push(self.block(n));
+      // read ahead: games mostly read the disc in order
+      for (var k = last + 1; k <= last + 2 && k * BLOCK < self.size; k++) self.block(k).catch(function () {});
+      return Promise.all(want).then(function (blocks) {
+        var out = new Uint8Array(size), pos = 0;
+        for (var i = 0; i < blocks.length && pos < size; i++) {
+          var b = blocks[i], from = i === 0 ? offset - first * BLOCK : 0, n = Math.min(b.length - from, size - pos);
+          out.set(b.subarray(from, from + n), pos); pos += n;
+        }
+        return out;
+      });
+    };
+    RangeDisc.prototype.block = function (n) {
+      var self = this;
+      if (self.cache.has(n)) { var b = self.cache.get(n); self.cache.delete(n); self.cache.set(n, b); return Promise.resolve(b); }
+      if (self.loading.has(n)) return self.loading.get(n);
+      var start = n * BLOCK, end = Math.min(self.size, start + BLOCK), pieces = [];
+      self.parts.forEach(function (p) {
+        var a = Math.max(start, p.start), z = Math.min(end, p.start + p.size);
+        if (a < z) pieces.push(rangeOf(p.url, a - p.start, z - p.start));
+      });
+      var pr = Promise.all(pieces).then(function (list) {
+        var out = new Uint8Array(end - start), pos = 0;
+        list.forEach(function (x) { out.set(x, pos); pos += x.length; });
+        self.loading.delete(n); self.cache.set(n, out);
+        if (self.cache.size > KEEP) self.cache.delete(self.cache.keys().next().value);
+        stats.read += out.length;
+        return out;
+      }, function (e) { self.loading.delete(n); throw e; });
+      self.loading.set(n, pr);
+      return pr;
+    };
+    function rangeOf(url, from, to, tries) {
+      tries = tries || 0;
+      return fetchFile(url, { headers: { Range: "bytes=" + from + "-" + (to - 1) } }).then(function (r) {
+        if (!r.ok) throw new Error(r.status + " for " + decodeURIComponent(url.split("/").pop()));
+        return r.arrayBuffer().then(function (a) {
+          var b = new Uint8Array(a);
+          if (r.status === 200 && b.length > to - from) b = b.slice(from, to);   // server sent the whole file
+          if (b.length !== to - from) throw new Error("short read");
+          return b;
+        });
+      }).catch(function (e) {
+        if (tries < 3) return new Promise(function (ok) { setTimeout(ok, 800 * (tries + 1)); }).then(function () { return rangeOf(url, from, to, tries + 1); });
+        throw e;
+      });
+    }
+    // On GitHub Pages a brand-new upload may not be on the site yet: then read it from GitHub itself
+    var rawFallback = {};
+    function fetchFile(url, opts) {
+      var u = rawFallback[url] || url;
+      return fetch(u, opts).then(function (r) {
+        if (r.status !== 404 || !FrutiLibrary.repo.local || /^[a-z]+:/i.test(url)) return r;
+        var R = FrutiLibrary.repo, raw = "https://raw.githubusercontent.com/" + R.owner + "/" + R.name + "/main/" + url;
+        return fetch(raw, opts).then(function (r2) { if (r2.ok) rawFallback[url] = raw; return r2.ok ? r2 : r; });
+      });
+    }
+
+    function fail(text) { running = false; show("Something went wrong", text); }
+    addEventListener("error", function (e) { if (running || $("#msg").hidden) fail(e.message || "The emulator stopped."); });
+    addEventListener("unhandledrejection", function (e) { if (running) fail((e.reason && e.reason.message) || String(e.reason)); });
+
+    // ---------- Multi-threading: needs a cross-origin isolated page (sw.js adds the headers) ----------
+    function threadsReady(g) {
+      var key = "fruti:ps2-reload:" + id;
+      if (window.crossOriginIsolated && typeof SharedArrayBuffer === "function") { sessionStorage.removeItem(key); return true; }
+      if (location.protocol === "file:" || !("serviceWorker" in navigator) || !window.isSecureContext) {
+        show(g.title, "PS2 games only play on the website (GitHub Pages), not when index.html is opened from your computer."); return false;
+      }
+      if (sessionStorage.getItem(key)) { sessionStorage.removeItem(key); show(g.title, "This browser can't run PS2 games. Try a recent Chrome, Edge or Firefox on a computer."); return false; }
+      show(g.title, "Getting the PS2 emulator ready…");
+      navigator.serviceWorker.register("sw.js").then(function () { return navigator.serviceWorker.ready; }).then(function () {
+        sessionStorage.setItem(key, "1"); location.reload();
+      }).catch(function () { show(g.title, "This browser can't run PS2 games. Try a recent Chrome, Edge or Firefox on a computer."); });
+      return false;
+    }
+
+    // What kind of disc file it is, from its first bytes
+    function discName(b, fallback) {
+      var s = String.fromCharCode.apply(null, b.subarray(0, 8));
+      if (s.slice(0, 4) === "CISO") return "game.cso";
+      if (s === "MComprHD") return "game.chd";
+      if (s.slice(0, 4) === "IsZ!") return "game.isz";
+      if (s.slice(0, 2) === "PK" || (b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc) || s.slice(0, 4) === "Rar!") return "archive";
+      return /\.bin$/i.test(fallback) ? "game.bin" : "game.iso";
+    }
+
+    var stats = { read: 0 };
+    function trackTime(gid) {
+      var last = Date.now();
+      function save() {
+        var now = Date.now(), add = now - last; last = now;
+        try { var t = JSON.parse(localStorage.getItem("fruti:times") || "{}"); t[gid] = (t[gid] || 0) + add; localStorage.setItem("fruti:times", JSON.stringify(t)); } catch (e) {}
+      }
+      setInterval(function () { if (!document.hidden) save(); }, 15000);
+      addEventListener("pagehide", save);
+      document.addEventListener("visibilitychange", function () { if (document.hidden) save(); else last = Date.now(); });
+    }
+
+    function start(g, parts, name) {
+      show(g.title, "Starting the PS2 emulator…");
+      var base = new URL("ps2/", location.href).href;
+      var src;
+      // The emulator's helper threads load the same script; giving it to them as a Blob keeps them
+      // inside the page's cross-origin isolation (a plain URL needs extra headers GitHub Pages can't send).
+      fetch(base + "Play.js?v=1").then(function (r) { if (!r.ok) throw new Error("Play.js " + r.status); return r.text(); }).then(function (t) {
+        src = new Blob([t], { type: "text/javascript" });
+        return import(URL.createObjectURL(src));
+      }).then(function (mod) {
+        return mod.default({
+          locateFile: function (p) { return base + p; },
+          mainScriptUrlOrBlob: src,
+          print: function (t) { console.log("[Play!]", t); },
+          printErr: function (t) { console.warn("[Play!]", t); }
+        });
+      }).then(function (M) {
+        M.FS.mkdir("/work");
+        M.discImageDevice = new RangeDisc(M, parts);
+        M.ccall("initVm", "", [], []);
+        M.bootDiscImage(name);
+        running = true;
+        $("#msg").hidden = true;
+        canvas.focus(); wake();
+        trackTime(g.id);
+        var fps = $("#fps"); fps.hidden = false;
+        setInterval(function () {
+          var f = M.getFrames(); M.clearStats();
+          fps.textContent = f + " fps · read " + Math.round(stats.read / 1048576) + " MB";
+        }, 1000);
+        canvas.addEventListener("click", function () { canvas.focus(); });
+      }).catch(function (e) { fail("The PS2 emulator didn't start: " + (e && e.message || e)); });
+    }
+
+    if (!id) { show("No game selected."); return; }
+    FrutiLibrary.load().then(function (games) {
+      var g = games.filter(function (x) { return x.id === id; })[0];
+      if (!g) { show("This game is not in the library."); return; }
+      document.title = g.title + " - Fruti";
+      if (g.problem) { show(g.title, g.problem); return; }
+      if (!threadsReady(g)) return;
+      show(g.title, "Checking the game files…");
+      var parts = g.files.map(function (f, i) { return { url: g.urls[i], size: f.size }; });
+      return rangeOf(parts[0].url, 0, Math.min(16, parts[0].size)).then(function (head) {
+        var name = discName(head, g.fileName);
+        if (name === "archive") {
+          show(g.title, "PS2 games can't be zipped or 7-zipped: the PS2 emulator reads the disc while you play. Upload the .iso (or a .cso / .chd) instead; big ones can be split into parts like My Game.iso.001, .002, …");
+          return;
+        }
+        // Click first: browsers only allow sound after a click
+        var b = document.createElement("button"); b.className = "btn";
+        b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></svg>Play';
+        var box = document.createElement("div"); box.style.display = "grid"; box.style.gap = "12px"; box.style.justifyItems = "center";
+        if (g.image) { var im = document.createElement("img"); im.src = g.image; im.alt = ""; box.appendChild(im); }
+        box.appendChild(b);
+        var note = document.createElement("p");
+        note.textContent = (matchMedia("(pointer: coarse)").matches ? "PS2 games need a fast computer; on phones most are too slow. " : "") +
+          "PS2 in the browser is an experiment: many games run slowly or not at all.";
+        box.appendChild(note);
+        show(g.title, "", box);
+        b.onclick = function () { start(g, parts, name); };
+        requestAnimationFrame(pollPads);
+      });
+    }).catch(function (e) { show("Couldn't load the game list from GitHub.", e.message); });
+  })();
+  </script>
+</body>
+</html>

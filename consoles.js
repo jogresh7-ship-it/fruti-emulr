@@ -12,6 +12,7 @@ window.FRUTI_CONSOLES = [
   { id: "snes",   name: "Super Nintendo",   tag: "SNES", folder: "SNES", icon: "icons/snes.png?v=2",    box: 1.38, ext: [".sfc", ".smc"] },
   { id: "segaMD", name: "Sega Genesis",     tag: "MD",   folder: "Genesis", icon: "icons/segaMD.png?v=2", box: 0.7, ext: [".md", ".gen", ".bin", ".smd"] },
   { id: "psx",    name: "PlayStation",      tag: "PS1",  folder: "PS", icon: "icons/psx.png",      box: 1, ext: [".chd", ".pbp", ".cue", ".bin", ".iso"] },
+  { id: "ps2",    name: "PlayStation 2",    tag: "PS2",  folder: "PS2", box: 0.71, ext: [".iso", ".cso", ".chd", ".bin"] },
   { id: "psp",    name: "PlayStation Portable", tag: "PSP", folder: "PSP", icon: "icons/psp.png", box: 0.58, ext: [".iso", ".cso", ".pbp"] },
   { id: "segaMS",     name: "Sega Master System", tag: "SMS",  folder: "Master System", icon: "icons/segaMS.png",  box: 0.72, ext: [".sms"] },
   { id: "segaGG",     name: "Sega Game Gear",     tag: "GG",   folder: "Game Gear", icon: "icons/segaGG.png",      box: 0.8,  ext: [".gg"] },

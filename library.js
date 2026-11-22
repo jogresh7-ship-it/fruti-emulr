@@ -28,6 +28,7 @@
     "n64": "n64", "nintendo 64": "n64",
     "snes": "snes", "super nintendo": "snes",
     "genesis": "segaMD", "sega genesis": "segaMD", "mega drive": "segaMD", "md": "segaMD",
+    "ps2": "ps2", "playstation 2": "ps2",
     "psp": "psp", "playstation portable": "psp",
     "master system": "segaMS", "sms": "segaMS", "sega master system": "segaMS",
     "game gear": "segaGG", "gg": "segaGG", "sega game gear": "segaGG",

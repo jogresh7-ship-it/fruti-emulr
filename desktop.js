@@ -54,7 +54,7 @@
     if (g.problem || g.unsupported) { toast(g.problem || "This game can't be played."); return; }
     history = [{ id: g.id, at: Date.now() }, ...history.filter((x) => x.id !== g.id)].slice(0, 40);
     store.set("history", history);
-    location.href = abs(`emu.html?v=${VERSION}&game=${encodeURIComponent(g.id)}`);
+    location.href = abs(`${g.console === "ps2" ? "ps2" : "emu"}.html?v=${VERSION}&game=${encodeURIComponent(g.id)}`);
   }
 
   // ---------- Pieces ----------

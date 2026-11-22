@@ -19,6 +19,7 @@ rom/<Console>/<Game Name>/<game file>
 | `N64` | Nintendo 64 |
 | `SNES` | Super Nintendo |
 | `Genesis` | Sega Genesis / Mega Drive |
+| `PS2` | PlayStation 2 (experiment, see below) |
 | `PSP` | PlayStation Portable |
 | `Master System` | Sega Master System |
 | `Game Gear` | Sega Game Gear |
@@ -45,6 +46,7 @@ On GitHub: open the console folder, then **Add file → Upload files**, and drag
 - **File types:** `.zip`, `.7z` or the plain ROM (`.nds`, `.gba`, ...). Parts of a `.7z` work too, even when they're named `.zip` (like `My Game.part001.zip`), and so do 7-Zip volumes (`My Game.7z.001`, `.002`, ...).
 - **Cover:** put a `.jpg` or `.png` in the game's folder. For a one-file game, give the picture the same name as the game file, next to it (`rom/DS/My Game.zip` → `rom/DS/My Game.jpg`). Posters take the shape of that console's game box (tall for PSP, almost square for DS), set by `box` in `consoles.js`.
 - **PlayStation `.cue` + `.bin`:** put them in one `.zip`.
+- **PS2** games: the disc as `.iso`, `.cso` or `.chd` (cut into parts if big), **not** zipped. They open in their own player (`ps2.html`), which reads the disc straight from the site while you play. It uses [Play!](https://github.com/jpd002/Play-) (BSD-2-Clause), built for the browser by the **Build PS2 emulator (Play!)** GitHub Action into `ps2/`. It's an experiment: it needs a fast computer, and many games run slowly or don't start. Controls: W A S D move, T F G H camera, I J K L face buttons, Q / E L1 / R1, 1 / 3 L2 / R2, Enter Start, V Select; a game controller works too.
 - **Details (optional):** genres, a description or colors go in `games.js`, by folder.
 - **PSP** games (`.iso`, `.cso`, `.pbp`, or zipped / 7z) only play on the website (GitHub Pages), on a computer with an up-to-date Chrome, Edge or Firefox. The PSP emulator needs multi-threading, which GitHub Pages doesn't switch on by itself, so `sw.js` switches it on for the player page. Big PSP games take a while to load and need a lot of memory.
 
