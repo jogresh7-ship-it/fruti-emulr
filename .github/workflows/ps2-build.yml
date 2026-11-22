@@ -1,27 +1,65 @@
-# Builds the Play! PS2 emulator (https://github.com/jpd002/Play-, BSD-2-Clause) for the browser.
-# Only runs when started by hand from the Actions tab.
+# Builds the Play! PS2 emulator (https://github.com/jpd002/Play-, BSD-2-Clause) for the browser,
+# the same way Play!'s own "Build JavaScript" workflow does.
+# Only runs when started by hand from the Actions tab. With step=build the result is saved to the
+# separate "ps2-build" branch (never main); the site's ps2/ folder is then updated from it by hand.
 name: Build PS2 emulator (Play!)
 on:
   workflow_dispatch:
     inputs:
       step:
-        description: "inspect = only show Play!'s build files; build = build it and save it to the ps2-build branch"
+        description: "inspect = only show Play!'s browser code; build = also build it and save it to the ps2-build branch"
         default: inspect
 permissions:
   contents: write
 jobs:
   ps2:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     steps:
       - name: Get Play! source
-        run: git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/jpd002/Play-.git play
-      - name: Show its browser build instructions
+        run: git clone --recurse-submodules https://github.com/jpd002/Play-.git play
+      - name: Show its browser code
         run: |
           cd play
-          git log -1 --format='%H %cd'
-          ls; ls .github/workflows
-          for f in .github/workflows/*; do echo "===== $f"; cat "$f"; done | grep -n -i -B3 -A40 -E "js|emscripten|emsdk|wasm" | head -400
-          echo "===== js/"; ls -R js | head -80
-          echo "===== Source/ui_js"; ls Source/ui_js 2>/dev/null
-          grep -rn -i "emscripten" CMakeLists.txt Source/ui_js/CMakeLists.txt 2>/dev/null | head -40
+          for f in js/play_browser/src/PlayModule.ts js/play_browser/src/Actions.ts js/play_browser/src/DiscImageDevice.ts js/play_browser/src/App.tsx js/play_browser/src/index.tsx js/play_browser/public/index.html js/play_browser/package.json js/play_browser/config-overrides.js Source/ui_js/CMakeLists.txt Source/ui_js/Main.cpp; do echo "===== $f"; cat "$f"; done
+          echo "===== presets"; grep -n -A12 -i wasm CMakePresets.json | head -80
+      - name: Setup Emscripten
+        if: inputs.step == 'build'
+        uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 4.0.1
+      - name: Build Play! (WebAssembly)
+        if: inputs.step == 'build'
+        run: |
+          sudo apt-get update && sudo apt-get install -y ninja-build
+          cd play
+          emcmake cmake --preset wasm-ninja
+          cmake --build --preset wasm-ninja-release
+          ls -la build_cmake/build/wasm-ninja/Source/ui_js/Release/
+      - name: Set up Node.js
+        if: inputs.step == 'build'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.17
+      - name: Build Play! browser app
+        if: inputs.step == 'build'
+        run: |
+          OUT=$GITHUB_WORKSPACE/play/build_cmake/build/wasm-ninja/Source/ui_js/Release
+          cd play/js/play_browser
+          cp $OUT/Play.js ./src/; cp $OUT/Play.wasm ./public/; cp $OUT/Play.js ./public/
+          export REACT_APP_VERSION=$(git describe --always)
+          npm install
+          PUBLIC_URL=. npm run build
+          ls -la build build/static/js
+      - name: Save to the ps2-build branch
+        if: inputs.step == 'build'
+        run: |
+          mkdir out && cd out
+          cp -r $GITHUB_WORKSPACE/play/js/play_browser/build app
+          mkdir core && cp $GITHUB_WORKSPACE/play/build_cmake/build/wasm-ninja/Source/ui_js/Release/Play.* core/
+          cp $GITHUB_WORKSPACE/play/License.txt LICENSE-Play.txt
+          (cd $GITHUB_WORKSPACE/play && git log -1 --format='Play! %H %cd') > VERSION.txt
+          git init -q -b ps2-build
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "Play! PS2 emulator browser build"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ps2-build
