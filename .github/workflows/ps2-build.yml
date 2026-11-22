@@ -1,0 +1,27 @@
+# Builds the Play! PS2 emulator (https://github.com/jpd002/Play-, BSD-2-Clause) for the browser.
+# Only runs when started by hand from the Actions tab.
+name: Build PS2 emulator (Play!)
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: "inspect = only show Play!'s build files; build = build it and save it to the ps2-build branch"
+        default: inspect
+permissions:
+  contents: write
+jobs:
+  ps2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Get Play! source
+        run: git clone --depth 1 --recurse-submodules --shallow-submodules https://github.com/jpd002/Play-.git play
+      - name: Show its browser build instructions
+        run: |
+          cd play
+          git log -1 --format='%H %cd'
+          ls; ls .github/workflows
+          for f in .github/workflows/*; do echo "===== $f"; cat "$f"; done | grep -n -i -B3 -A40 -E "js|emscripten|emsdk|wasm" | head -400
+          echo "===== js/"; ls -R js | head -80
+          echo "===== Source/ui_js"; ls Source/ui_js 2>/dev/null
+          grep -rn -i "emscripten" CMakeLists.txt Source/ui_js/CMakeLists.txt 2>/dev/null | head -40
