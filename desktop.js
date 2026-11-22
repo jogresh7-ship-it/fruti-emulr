@@ -203,10 +203,25 @@
     $("#status-right").textContent = total >= 60000 ? "Total play time " + fmt(total) : "Fruti Emulr";
   }
 
+  // A cover uploaded a moment ago isn't on GitHub Pages yet: use GitHub's own copy until it is
+  function checkCovers(list) {
+    const R = FrutiLibrary.repo;
+    if (!R.local) return;
+    list.forEach((g) => {
+      if (!g.image || /^[a-z]+:/i.test(g.image)) return;
+      const test = new Image();
+      test.onerror = () => {
+        g.image = `https://raw.githubusercontent.com/${R.owner}/${R.name}/main/${g.image}`;
+        render();
+      };
+      test.src = g.image;
+    });
+  }
+
   // ---------- Load games from GitHub ----------
   function load(force) {
     state = "loading"; render();
-    FrutiLibrary.load(force).then((list) => { games = list; state = "ok"; })
+    FrutiLibrary.load(force).then((list) => { games = list; state = "ok"; checkCovers(list); })
       .catch((e) => { state = "error"; error = e.message; })
       .then(render);
   }
