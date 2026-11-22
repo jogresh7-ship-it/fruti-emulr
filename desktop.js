@@ -433,7 +433,20 @@
       tree.push({ path: dir + file, mode: "100644", type: "blob", sha: blob.sha });
     }
     let pic = cover;
-    if (!pic && coverUrl) { try { const r = await fetch(coverUrl); if (r.ok) pic = await r.blob(); } catch {} }
+    if (!pic && coverUrl) {
+      say("Getting the cover picture…", n / (n + 1));
+      // Straight from the site; most image sites block that, so then through images.weserv.nl
+      // (a free image service that allows it). Only real pictures are kept.
+      const tries = [coverUrl, "https://images.weserv.nl/?url=" + encodeURIComponent(coverUrl.replace(/^https?:\/\//, "")) + "&output=png"];
+      for (const u of tries) {
+        try {
+          const r = await fetch(u);
+          if (!r.ok) continue;
+          const b = await r.blob();
+          if (/^image\//.test(b.type) && b.size > 200) { pic = b; break; }
+        } catch {}
+      }
+    }
     if (pic) {
       const pext = /png/.test(pic.type) ? ".png" : /webp/.test(pic.type) ? ".webp" : ".jpg";
       const blob = await call("/git/blobs", { method: "POST", body: JSON.stringify({ content: await b64(pic), encoding: "base64" }) });
