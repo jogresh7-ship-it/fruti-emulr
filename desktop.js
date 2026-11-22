@@ -77,6 +77,7 @@
     const c = consoleOf(g.console), blocked = g.problem || g.unsupported;
     const el = h("button", "card"); el.title = blocked ? (g.problem || "Can't be played") : "Play " + g.title;
     const a = art(g, "card-art");
+    a.style.aspectRatio = String(c.box || 0.72);   // shaped like that console's game box
     a.appendChild(h("div", "play", blocked ? ICON.warn : ICON.play));
     if (g.problem) a.appendChild(h("span", "warn", problemLabel(g.problem)));
     el.appendChild(a);
@@ -139,21 +140,6 @@
   function renderHome(box) {
     const recent = history.map((x) => games.find((g) => g.id === x.id)).filter(Boolean);
     const withCover = games.filter((g) => g.image && !g.problem);
-    const featured = recent.find((g) => !g.problem) || withCover[Math.floor(Date.now() / 3600000) % Math.max(1, withCover.length)] || games[0];
-    if (featured) {
-      const c = consoleOf(featured.console), wasPlayed = recent.includes(featured);
-      const hero = h("div", "hero"); hero.setAttribute("role", "button"); hero.tabIndex = 0;
-      if (featured.image) {
-        const bg = h("div", "hero-bg"); bg.style.backgroundImage = `url("${featured.image}")`; hero.appendChild(bg);
-      }
-      hero.appendChild(h("div", "hero-text", `<div class="hero-kicker">${wasPlayed ? "Continue playing" : "Featured"} · ${esc(c.name)}</div>
-        <h2 class="hero-title">${esc(featured.title)}</h2>
-        <div class="hero-meta">${times[featured.id] >= 60000 ? esc(fmt(times[featured.id])) + " played" : esc(mb(featured.size))}</div>
-        <span class="btn btn-white">${ICON.play}Play</span>`));
-      hero.onclick = () => play(featured);
-      hero.onkeydown = (e) => { if (e.key === "Enter") play(featured); };
-      box.appendChild(hero);
-    }
     const tabs = h("div", "tabs");
     const TABS = [["recent", "Recently played"], ["all", "All games"], ["covers", "With box art"]];
     if (!recent.length && ui.tab === "recent") ui.tab = "all";
@@ -165,7 +151,7 @@
     box.appendChild(tabs);
     const list = ui.tab === "recent" ? recent : ui.tab === "covers" ? withCover : [...games].sort((a, b) => a.title.localeCompare(b.title));
     if (!list.length) { box.appendChild(h("div", "note", ui.tab === "recent" ? "Nothing played yet. Pick a game below or from your library." : "No games here yet.")); return; }
-    const grid = h("div", "cards"); list.forEach((g) => grid.appendChild(card(g))); box.appendChild(grid);
+    const grid = h("div", "cards boxes"); list.forEach((g) => grid.appendChild(card(g))); box.appendChild(grid);
   }
 
   function renderCatalogue(box, q) {

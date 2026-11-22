@@ -214,3 +214,12 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .row-del svg { width: 16px; height: 16px; }
 .pill.mine { background: #2a3a5a; border-color: #2a3a5a; color: #cfe0ff; }
 @media (max-width: 760px) { .hd-import span { display: none; } .hd-import { width: 38px; padding: 0; justify-content: center; } }
+
+/* Home: game boxes instead of wide cards */
+.cards.boxes { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 18px 16px; align-items: end; }
+.cards.boxes .card { background: none; border: 0; }
+.cards.boxes .card-art { border-radius: 6px; border: 1px solid var(--border); box-shadow: 0 8px 22px rgba(0,0,0,.45); transition: transform .15s; }
+.cards.boxes .card:hover .card-art { transform: translateY(-3px); }
+.cards.boxes .card:hover .card-art img { transform: none; }
+.cards.boxes .card-info { padding: 8px 2px 0; }
+@media (max-width: 760px) { .cards.boxes { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px 10px; } }
