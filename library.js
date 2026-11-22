@@ -27,19 +27,14 @@
     "gb": "gb", "gbc": "gb", "game boy": "gb", "game boy color": "gb",
     "n64": "n64", "nintendo 64": "n64",
     "snes": "snes", "super nintendo": "snes",
-    "nes": "nes",
     "genesis": "segaMD", "sega genesis": "segaMD", "mega drive": "segaMD", "md": "segaMD",
     "psp": "psp", "playstation portable": "psp",
     "master system": "segaMS", "sms": "segaMS", "sega master system": "segaMS",
     "game gear": "segaGG", "gg": "segaGG", "sega game gear": "segaGG",
     "32x": "sega32x", "sega 32x": "sega32x",
     "saturn": "segaSaturn", "sega saturn": "segaSaturn",
-    "atari 2600": "atari2600", "2600": "atari2600",
-    "atari 7800": "atari7800", "7800": "atari7800",
     "jaguar": "jaguar", "atari jaguar": "jaguar",
-    "neo geo pocket": "ngp", "ngp": "ngp", "neo geo pocket color": "ngp", "ngpc": "ngp",
     "wonderswan": "ws", "ws": "ws", "wonderswan color": "ws", "wsc": "ws",
-    "virtual boy": "vb", "vb": "vb",
     "pc engine": "pce", "pce": "pce", "turbografx-16": "pce", "turbografx": "pce", "tg16": "pce"
   };
   var UNSUPPORTED = {};

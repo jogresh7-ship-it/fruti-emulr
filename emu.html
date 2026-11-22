@@ -59,9 +59,9 @@
   <button id="keysBtn" hidden title="Which keys to press">Controls</button>
   <div id="keys" hidden></div>
   <div id="game"><div class="msg">Loading…</div></div>
-  <script src="consoles.js?v=12"></script>
+  <script src="consoles.js?v=13"></script>
   <script src="games.js?v=10"></script>
-  <script src="library.js?v=17"></script>
+  <script src="library.js?v=18"></script>
   <script>
     // Console player (EmulatorJS). emu.html?game=rom/<Console>/<Game Name>
     // Only games found in the repo's rom/ folder can be played.
@@ -128,7 +128,6 @@
         nds:    [["A", K.z], ["B", K.x], ["X", K.a], ["Y", K.s], ["L / R", K.q + " / " + K.e], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows], ["Touch screen", "Mouse"]],
         gba:    [["A", K.z], ["B", K.x], ["L / R", K.q + " / " + K.e], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
         gb:     [["A", K.z], ["B", K.x], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
-        nes:    [["A", K.z], ["B", K.x], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
         snes:   [["A", K.z], ["B", K.x], ["X", K.a], ["Y", K.s], ["L / R", K.q + " / " + K.e], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
         segaMD: [["A", K.s], ["B", K.x], ["C", K.z], ["Start", K.enter], ["D-pad", K.arrows]],
         psx:    [["Move (left stick)", "W A S D"], ["✕ Cross", "K"], ["○ Circle", "L"], ["□ Square", "J"], ["△ Triangle", "I"], ["L1 / R1", "Q / E"], ["L2 / R2", "1 / 3"], ["Start", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
@@ -137,12 +136,8 @@
         segaGG: [["1", K.x], ["2", K.z], ["Start", K.enter], ["D-pad", K.arrows]],
         sega32x: [["A", K.s], ["B", K.x], ["C", K.z], ["X / Y / Z", "A / Q / E"], ["Start", K.enter], ["Mode", K.v], ["D-pad", K.arrows]],
         segaSaturn: [["A", K.s], ["B", K.x], ["C", K.z], ["X / Y / Z", "A / Q / E"], ["L / R", K.tab + " / " + K.r], ["Start", K.enter], ["D-pad", K.arrows]],
-        atari2600: [["Fire", K.x], ["Reset", K.enter], ["Select", K.v], ["Joystick", K.arrows]],
-        atari7800: [["Button 1", K.x], ["Button 2", K.z], ["Pause", K.enter], ["Select", K.v], ["Joystick", K.arrows]],
         jaguar: [["A / B / C", "S / X / Z"], ["Pause", K.enter], ["Option", K.v], ["D-pad", K.arrows]],
-        ngp:    [["A", K.z], ["B", K.x], ["Option", K.enter], ["Stick", K.arrows]],
         ws:     [["A", K.z], ["B", K.x], ["Start", K.enter], ["X pad", K.arrows], ["Y pad", "I J K L (in emulator menu)"]],
-        vb:     [["A", K.z], ["B", K.x], ["Start", K.enter], ["Select", K.v], ["Left pad", K.arrows], ["L / R", K.q + " / " + K.e]],
         pce:    [["I", K.z], ["II", K.x], ["Run", K.enter], ["Select", K.v], ["D-pad", K.arrows]],
         n64:    [["Move (stick)", "W A S D"], ["Look around (C buttons)", "I J K L"], ["A", "Space"], ["B", "Shift"], ["Z trigger", "Z"], ["L / R", "Q / E"], ["Start", K.enter], ["D-pad", K.arrows]]
       };

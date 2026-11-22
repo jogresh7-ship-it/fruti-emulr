@@ -18,19 +18,14 @@ rom/<Console>/<Game Name>/<game file>
 | `GB` | Game Boy / Game Boy Color |
 | `N64` | Nintendo 64 |
 | `SNES` | Super Nintendo |
-| `NES` | NES |
 | `Genesis` | Sega Genesis / Mega Drive |
 | `PSP` | PlayStation Portable |
 | `Master System` | Sega Master System |
 | `Game Gear` | Sega Game Gear |
 | `32X` | Sega 32X |
 | `Saturn` | Sega Saturn |
-| `Atari 2600` | Atari 2600 |
-| `Atari 7800` | Atari 7800 |
 | `Jaguar` | Atari Jaguar |
-| `Neo Geo Pocket` | Neo Geo Pocket / Color |
 | `WonderSwan` | WonderSwan / Color |
-| `Virtual Boy` | Virtual Boy |
 | `PC Engine` | PC Engine / TurboGrafx-16 |
 
 Every game needs its own folder, named after the game. Put the game file, or all of its parts, inside:

@@ -5,14 +5,6 @@
    "size": 696
   },
   {
-   "path": "rom/Atari 2600/README.md",
-   "size": 712
-  },
-  {
-   "path": "rom/Atari 7800/README.md",
-   "size": 712
-  },
-  {
    "path": "rom/DS/Animal Crossing DS.jpeg",
    "size": 22755
   },
@@ -95,14 +87,6 @@
   {
    "path": "rom/N64/Super Mario 64.zip",
    "size": 6099886
-  },
-  {
-   "path": "rom/NES/README.md",
-   "size": 691
-  },
-  {
-   "path": "rom/Neo Geo Pocket/README.md",
-   "size": 732
   },
   {
    "path": "rom/PC Engine/README.md",
@@ -507,10 +491,6 @@
   {
    "path": "rom/Saturn/README.md",
    "size": 804
-  },
-  {
-   "path": "rom/Virtual Boy/README.md",
-   "size": 715
   },
   {
    "path": "rom/WonderSwan/README.md",
