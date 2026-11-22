@@ -439,10 +439,24 @@
       const blob = await call("/git/blobs", { method: "POST", body: JSON.stringify({ content: await b64(pic), encoding: "base64" }) });
       tree.push({ path: dir + "cover" + pext, mode: "100644", type: "blob", sha: blob.sha });
     }
+    // A picture link that can't be downloaded here (most image sites block that): save the link
+    // itself in games.js instead; the launcher shows covers from links too.
+    let linkOnly = !pic && coverUrl ? coverUrl : "";
     say("Saving to GitHub…", n / (n + 1));
     for (let attempt = 0; attempt < 3; attempt++) {
       const ref = await call("/git/ref/heads/main"), base = await call("/git/commits/" + ref.object.sha);
-      const t = await call("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: base.tree.sha, tree }) });
+      let entries = tree;
+      if (linkOnly) {
+        const cur = await call("/contents/games.js?ref=" + ref.object.sha);
+        let text = new TextDecoder().decode(Uint8Array.from(atob(cur.content.replace(/\s/g, "")), (ch) => ch.charCodeAt(0)));
+        const folder = `${c.folder || c.tag}/${name}`;
+        const line = `  { folder: ${JSON.stringify(folder)}, image: ${JSON.stringify(linkOnly)} },\n`;
+        const at = text.lastIndexOf("];");
+        text = at < 0 ? text + `\nwindow.FRUTI_GAMES = (window.FRUTI_GAMES || []).concat([\n${line}]);\n` : text.slice(0, at) + line + text.slice(at);
+        const gb = await call("/git/blobs", { method: "POST", body: JSON.stringify({ content: text, encoding: "utf-8" }) });
+        entries = tree.concat([{ path: "games.js", mode: "100644", type: "blob", sha: gb.sha }]);
+      }
+      const t = await call("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: base.tree.sha, tree: entries }) });
       const cm = await call("/git/commits", { method: "POST", body: JSON.stringify({ message: `Add ${name} (${c.name})`, tree: t.sha, parents: [ref.object.sha] }) });
       try { await call("/git/refs/heads/main", { method: "PATCH", body: JSON.stringify({ sha: cm.sha }) }); say("Done.", 1); return tree.length; }
       catch (e) { if (attempt === 2) throw e; }   // main moved meanwhile: try again on top of it

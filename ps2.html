@@ -48,7 +48,7 @@
   <div class="msg" id="msg"><div class="box"><b>Loading…</b></div></div>
 
   <script src="consoles.js?v=16"></script>
-  <script src="games.js?v=10"></script>
+  <script>document.write('<script src="games.js?t=' + Math.floor(Date.now() / 60000) + '"><\/script>');</script>
   <script src="library.js?v=21"></script>
   <script>
   // PlayStation 2 player, using Play! (https://github.com/jpd002/Play-, BSD-2-Clause) built for the browser
