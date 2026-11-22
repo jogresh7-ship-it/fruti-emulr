@@ -15,6 +15,29 @@
 // games.js can add details (genres, description, colors) to a game by its folder.
 (function () {
   "use strict";
+
+  // ---------- One-time reset for every visitor ----------
+  // When RESET changes, each browser clears (once) the games imported into it, the downloaded game
+  // copies, play times, history and saved settings. Games on GitHub and the owner's upload
+  // connection are kept; so are the emulator's own game saves.
+  var RESET = "2026-11-22";
+  var resetDone = (function () {
+    var done = Promise.resolve();
+    try {
+      if (localStorage.getItem("fruti:reset") === RESET) return done;
+      Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf("fruti:") === 0 && k !== "fruti:gh-token") localStorage.removeItem(k);
+      });
+      Object.keys(sessionStorage).forEach(function (k) { if (k.indexOf("fruti:") === 0) sessionStorage.removeItem(k); });
+      var jobs = [];
+      if (window.caches) jobs.push(caches.delete("fruti-games-v1").catch(function () {}));
+      if (window.indexedDB) jobs.push(new Promise(function (ok) {
+        var r = indexedDB.deleteDatabase("fruti-imports"); r.onsuccess = r.onerror = r.onblocked = function () { ok(); };
+      }));
+      done = Promise.all(jobs).then(function () { try { localStorage.setItem("fruti:reset", RESET); } catch (e) {} });
+    } catch (e) {}
+    return done;
+  })();
   var REPO = "jogresh7-ship-it/fruti-emulr";   // used when the page isn't on <owner>.github.io/<repo>/
   var BRANCH = "main";
   var CACHE_MS = 3 * 60 * 1000;                // GitHub allows 60 lookups an hour per visitor (the ↻ button skips this)
@@ -211,18 +234,22 @@
     return games.sort(function (a, b) { return a.title.localeCompare(b.title); });
   }
 
+  // GitHub games + games this visitor imported into this browser
+  function loadNow(force) {
+    return Promise.all([fetchTree(force).then(build).catch(function (e) { return { error: e }; }), Local.games().catch(function () { return []; })])
+      .then(function (r) {
+        if (r[0].error && !r[1].length) throw r[0].error;
+        return (r[0].error ? [] : r[0]).concat(r[1]).sort(function (a, b) { return a.title.localeCompare(b.title); });
+      });
+  }
+
   window.FrutiLibrary = {
     CONSOLE_FOLDERS: CONSOLE_FOLDERS,
     repo: R,
     url: url,
     // -> Promise of the game list
     load: function (force) {
-      // GitHub games + games this visitor imported into this browser
-      return Promise.all([fetchTree(force).then(build).catch(function (e) { return { error: e }; }), Local.games().catch(function () { return []; })])
-        .then(function (r) {
-          if (r[0].error && !r[1].length) throw r[0].error;
-          return (r[0].error ? [] : r[0]).concat(r[1]).sort(function (a, b) { return a.title.localeCompare(b.title); });
-        });
+      return resetDone.then(function () { return loadNow(force); });
     },
     local: null,   // set below
     // -> Promise of a message when parts are missing, else null. Reads only the start of the first part.
@@ -291,12 +318,12 @@
   var Local = (function () {
     var dbp = null;
     function db() {
-      if (!dbp) dbp = new Promise(function (ok, no) {
+      if (!dbp) dbp = resetDone.then(function () { return new Promise(function (ok, no) {
         if (!window.indexedDB) return no(new Error("This browser can't save games."));
         var r = indexedDB.open("fruti-imports", 1);
         r.onupgradeneeded = function () { r.result.createObjectStore("games", { keyPath: "key" }); };
         r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); };
-      });
+      }); });
       return dbp;
     }
     function tx(mode, fn) {
