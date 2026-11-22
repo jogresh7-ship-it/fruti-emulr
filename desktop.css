@@ -274,3 +274,76 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .row:focus, .sb-link:focus, .flt:focus, .con-head:focus, .hd-tabs .tab:focus { outline: 2px solid #fff; outline-offset: 2px; }
 .card:focus { outline: none; }
 .card:focus .card-art { transform: translateY(-6px) scale(1.03); box-shadow: 0 18px 40px rgba(0,0,0,.6); }
+
+/* ================= Smoother effects (layout unchanged) ================= */
+:root { --ease: cubic-bezier(.22,1,.36,1); --spring: cubic-bezier(.34,1.56,.64,1); }
+
+/* Game boxes: 3D tilt toward the mouse, light shine, glow in the cover's own colours */
+.cards.boxes .card { position: relative; perspective: 900px; }
+.cards.boxes .card::before { content: ""; position: absolute; left: 8%; right: 8%; top: 6%; bottom: 30%; z-index: 0; border-radius: 12px;
+  background: var(--cover, none) center / cover no-repeat; filter: blur(26px) saturate(1.6); opacity: 0; transform: scale(.85);
+  transition: opacity .45s var(--ease), transform .45s var(--ease); pointer-events: none; }
+.cards.boxes .card:hover::before, .cards.boxes .card:focus::before { opacity: .55; transform: scale(1.02); }
+.cards.boxes .card-art, .cards.boxes .card-info { position: relative; z-index: 1; }
+.cards.boxes .card-art { transform-style: preserve-3d; will-change: transform;
+  transition: transform .5s var(--ease), box-shadow .5s var(--ease), border-color .4s; }
+.cards.boxes .card:hover .card-art { transform: translateY(-8px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.04);
+  transition: transform .12s linear, box-shadow .5s var(--ease), border-color .4s; }
+.cards.boxes .card-art .shine { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .4s var(--ease);
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 0%), rgba(255,255,255,.32), rgba(255,255,255,.06) 35%, transparent 60%); mix-blend-mode: soft-light; }
+.cards.boxes .card:hover .shine { opacity: 1; }
+.cards.boxes .card .play { z-index: 3; background: radial-gradient(circle, rgba(0,0,0,.28) 0, rgba(0,0,0,0) 70%); }
+.cards.boxes .card .play svg { transition: transform .45s var(--spring); }
+.cards.boxes .card-title { transition: color .3s, transform .45s var(--ease); }
+.cards.boxes .card:hover .card-title { transform: translateY(-2px); }
+.card:active .card-art { transform: translateY(-2px) scale(.96) !important; transition: transform .12s ease !important; }
+
+/* Covers fade in softly as they load (no pop-in) */
+.card-art img, .row-art img { opacity: 0; transition: opacity .6s ease, transform .5s var(--ease); }
+.card-art img.ok, .row-art img.ok { opacity: 1; }
+.card-art::after { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.05) 50%, transparent 70%) 0 0 / 250% 100%;
+  animation: shimmer 1.4s linear infinite; }
+.card-art:has(img.ok)::after { display: none; }
+@keyframes shimmer { to { background-position: -250% 0; } }
+
+/* Sidebar: items glide and get a sliding accent bar */
+.sb-link, .sb-game { position: relative; transition: background .25s var(--ease), color .25s, padding-left .3s var(--ease); }
+.sb-game:hover { padding-left: 14px; }
+.sb-link::before, .sb-game::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 3px; border-radius: 3px; background: #fff;
+  transform: scaleY(0); transition: transform .3s var(--spring); }
+.sb-link.on::before, .sb-link:hover::before, .sb-game:hover::before { transform: scaleY(1); }
+.sb-game .thumb { transition: transform .35s var(--spring), box-shadow .3s; }
+.sb-game:hover .thumb { transform: scale(1.12) rotate(-2deg); box-shadow: 0 4px 12px rgba(0,0,0,.5); }
+
+/* Top bar: glassy when scrolled; buttons with springy press */
+.header { transition: background .35s var(--ease), box-shadow .35s var(--ease); }
+body.scrolled .header { background: rgba(21,21,21,.78); backdrop-filter: saturate(1.4) blur(14px); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.hd-btn, .hd-import { transition: background .25s, color .25s, transform .35s var(--spring), border-color .25s; }
+.hd-btn:hover { transform: translateY(-1px); border-color: #4a4a4a; }
+#reload:hover svg { transform: rotate(-200deg); }
+#reload svg { transition: transform .6s var(--ease); }
+.hd-search { transition: border-color .3s, box-shadow .3s var(--ease), width .4s var(--ease); }
+.hd-search:focus-within { border-color: #5a5a5a; box-shadow: 0 0 0 4px rgba(255,255,255,.06); }
+.hd-tabs .tab { transition: color .3s var(--ease), transform .3s var(--spring); }
+.hd-tabs .tab:active { transform: scale(.94); }
+
+/* Catalogue rows and filters */
+.row { transition: transform .4s var(--ease), background .3s, border-color .3s, box-shadow .4s var(--ease); }
+.row:hover { transform: translateX(6px); box-shadow: -4px 0 0 #fff inset, 0 10px 26px rgba(0,0,0,.35); }
+.row-art img { transition: opacity .6s ease, transform .5s var(--ease); }
+.row:hover .row-art img { transform: scale(1.06); }
+.row-play { transition: transform .4s var(--spring), background .3s, color .3s; }
+.row:hover .row-play { transform: scale(1.15); }
+.flt { transition: background .25s, color .25s, transform .3s var(--spring); }
+.flt:hover { transform: translateX(3px); }
+.flt .box { transition: background .25s, border-color .25s, transform .35s var(--spring); }
+.flt.on .box { transform: scale(1.1); }
+.con-head { transition: background .25s, transform .35s var(--spring); }
+.con-head:hover { transform: translateX(4px); }
+.con-head img { transition: transform .45s var(--spring); }
+.con-head:hover img { transform: scale(1.15) rotate(-4deg); }
+
+/* Page changes cross-fade a little longer and softer */
+.page { animation: fadein .45s var(--ease) both; }
+.card, .row, .con-head { animation-duration: .7s; animation-timing-function: var(--ease); }
+@keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.97); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }

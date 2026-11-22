@@ -63,7 +63,7 @@
     const a = h("div", cls);
     if (g.image) {
       const b = h("div", "blur"); b.style.backgroundImage = `url("${g.image}")`; a.appendChild(b);
-      const img = h("img"); img.src = g.image; img.alt = ""; img.loading = "lazy"; a.appendChild(img);
+      const img = h("img"); img.alt = ""; img.loading = "lazy"; img.onload = () => img.classList.add("ok"); img.onerror = () => img.classList.add("ok"); img.src = g.image; if (img.complete) img.classList.add("ok"); a.appendChild(img);
     } else {
       const c = consoleOf(g.console);
       a.appendChild(h("div", "mark", esc(initials(g.title))));
@@ -77,6 +77,8 @@
     const c = consoleOf(g.console), blocked = g.problem || g.unsupported;
     const el = h("button", "card"); el.title = blocked ? (g.problem || "Can't be played") : "Play " + g.title;
     const a = art(g, "card-art");
+    if (g.image) el.style.setProperty("--cover", `url("${g.image}")`);
+    a.appendChild(h("span", "shine"));
     a.style.aspectRatio = String(c.box || 0.72);   // shaped like that console's game box
     a.appendChild(h("div", "play", blocked ? ICON.warn : ICON.play));
     if (g.problem) a.appendChild(h("span", "warn", problemLabel(g.problem)));
@@ -329,6 +331,28 @@
   });
   // Coming back from a game (back button / bfcache): refresh play times
   addEventListener("pageshow", () => { times = store.get("times", {}); history = store.get("history", []); if (state === "ok") render(); });
+
+  // ---------- 3D tilt + light shine that follow the mouse over a game box ----------
+  if (matchMedia("(hover: hover) and (pointer: fine)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    let raf = 0, tgt = null, ev = null;
+    document.addEventListener("pointermove", (e) => {
+      ev = e; if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const art = ev.target.closest && ev.target.closest(".cards.boxes .card-art");
+        if (tgt && tgt !== art) { tgt.style.removeProperty("--rx"); tgt.style.removeProperty("--ry"); tgt = null; }
+        if (!art) return;
+        tgt = art;
+        const r = art.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
+        art.style.setProperty("--rx", ((0.5 - y) * 10).toFixed(2) + "deg");
+        art.style.setProperty("--ry", ((x - 0.5) * 12).toFixed(2) + "deg");
+        art.style.setProperty("--mx", (x * 100).toFixed(1) + "%");
+        art.style.setProperty("--my", (y * 100).toFixed(1) + "%");
+      });
+    }, { passive: true });
+  }
+  // Top bar turns glassy once the page is scrolled
+  $("#content").addEventListener("scroll", () => document.body.classList.toggle("scrolled", $("#content").scrollTop > 8), { passive: true });
 
   // ---------- Game controller in the library: D-pad / stick moves, A plays, B goes back, LB / RB switch tabs ----------
   (() => {
