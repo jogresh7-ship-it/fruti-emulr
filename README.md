@@ -64,8 +64,9 @@ Games run through [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3, 
 
 ## Using it
 
-- **Sidebar:** the consoles, with how many games each has. Consoles with games are listed first.
-- **Middle:** the selected console's games as posters. Click a poster and the game starts right away in the same tab; the **Library** button at the top left goes back (it hides while you play and comes back when you move the mouse).
+- **Sidebar:** Home, Catalogue, and **My library**: every game, recently played first (type in *Filter library* to narrow it). Click a game and it starts right away in the same tab; the **Library** button at the top left of the player goes back. On a phone the sidebar opens with **☰**.
+- **Home:** a big banner with the game you played last (or a featured one) and a **Play** button, then cards for *Recently played*, *All games* or *With box art*.
+- **Catalogue:** every game as a list, with console filters on the right (tick one or more consoles).
 - **Search** (top, or press `/`) looks through every console. **↻** checks GitHub for newly uploaded games.
 - While a game downloads and unpacks, the page shows how much time is left.
 - Console pictures are in `icons/` and set in `consoles.js` (`icon`); consoles without one show their short name.
