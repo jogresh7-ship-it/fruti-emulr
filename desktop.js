@@ -135,7 +135,6 @@
       const hero = h("div", "hero"); hero.setAttribute("role", "button"); hero.tabIndex = 0;
       if (featured.image) {
         const bg = h("div", "hero-bg"); bg.style.backgroundImage = `url("${featured.image}")`; hero.appendChild(bg);
-        const img = h("img", "hero-box"); img.src = featured.image; img.alt = ""; hero.appendChild(img);
       }
       hero.appendChild(h("div", "hero-text", `<div class="hero-kicker">${wasPlayed ? "Continue playing" : "Featured"} · ${esc(c.name)}</div>
         <h2 class="hero-title">${esc(featured.title)}</h2>

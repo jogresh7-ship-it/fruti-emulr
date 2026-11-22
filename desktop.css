@@ -72,11 +72,10 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 
 /* Hero banner (featured game) */
 .hero { position: relative; height: 300px; border-radius: 8px; overflow: hidden; background: #111; border: 1px solid var(--border); cursor: pointer; }
-.hero-bg { position: absolute; inset: -30px; background: center / cover no-repeat; filter: blur(22px) brightness(.55) saturate(1.2); transform: scale(1.05); }
-.hero-box { position: absolute; right: 48px; top: 50%; transform: translateY(-50%) rotate(2deg); height: 240px; max-width: 42%; border-radius: 6px;
-  box-shadow: 0 20px 50px rgba(0,0,0,.6); object-fit: contain; }
-.hero-text { position: absolute; left: 0; top: 0; bottom: 0; width: 62%; padding: 32px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;
-  background: linear-gradient(90deg, rgba(0,0,0,.7), rgba(0,0,0,0)); }
+.hero-bg { position: absolute; inset: 0; background: center 30% / cover no-repeat; transition: transform .4s ease; }
+.hero:hover .hero-bg { transform: scale(1.03); }
+.hero-text { position: absolute; left: 0; top: 0; bottom: 0; right: 0; padding: 32px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px;
+  background: linear-gradient(0deg, rgba(0,0,0,.85), rgba(0,0,0,.25) 55%, rgba(0,0,0,0)), linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,0) 60%); }
 .hero-kicker { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.75); }
 .hero-title { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 800; color: #fff; text-shadow: 0 2px 16px rgba(0,0,0,.5); }
 .hero-meta { color: rgba(255,255,255,.8); }
@@ -173,10 +172,9 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
   .hd-right { flex: 1; }
   .page { padding: 14px; }
   .hero { height: 220px; }
-  .hero-text { width: 100%; padding: 18px; padding-right: 130px; }
+  .hero-text { padding: 18px; }
   .hero-title { font-size: 22px; }
-  .hero-box { right: 14px; height: 130px; }
-  .cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .row-art { width: 120px; }
   .row-play { display: none; }
 }
@@ -184,6 +182,5 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 @media (max-height: 520px) and (min-width: 761px) {
   :root { --top: 52px; --bottom: 26px; }
   .hero { height: 200px; }
-  .hero-box { height: 160px; }
-}
+  }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
