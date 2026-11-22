@@ -136,19 +136,36 @@
     });
   }
 
+  // Sliding highlight under the chosen tab
+  let lastInd = null;
+  function moveInd() {
+    const nav = $("#hd-tabs"), on = nav.querySelector(".tab.on"), ind = nav.querySelector(".ind");
+    if (!on || !ind) return;
+    ind.style.width = on.offsetWidth + "px"; ind.style.transform = `translateX(${on.offsetLeft}px)`;
+    lastInd = { w: ind.style.width, t: ind.style.transform };
+  }
+  addEventListener("resize", () => requestAnimationFrame(moveInd));
+  // Boxes and rows fade in one after another
+  function stagger(root) {
+    root.querySelectorAll(".card, .row, .con-head").forEach((el, i) => el.style.setProperty("--i", Math.min(i, 24)));
+  }
+
   // ---------- Pages ----------
   function renderHome(box) {
     const recent = history.map((x) => games.find((g) => g.id === x.id)).filter(Boolean);
     const withCover = games.filter((g) => g.image && !g.problem);
-    const tabs = h("div", "tabs");
+    const tabs = $("#hd-tabs"); tabs.innerHTML = "";
     const TABS = [["recent", "Recently played"], ["all", "All games"], ["covers", "With box art"]];
     if (!recent.length && ui.tab === "recent") ui.tab = "all";
     TABS.forEach(([id, label]) => {
       const b = h("button", "tab" + (ui.tab === id ? " on" : ""), esc(label));
       b.onclick = () => { ui.tab = id; saveUi(); render(); };
+      b.dataset.tab = id;
       tabs.appendChild(b);
     });
-    box.appendChild(tabs);
+    const ind = h("span", "ind"); tabs.appendChild(ind);
+    if (lastInd) { ind.style.transition = "none"; ind.style.width = lastInd.w; ind.style.transform = lastInd.t; }
+    requestAnimationFrame(() => { ind.style.transition = ""; moveInd(); });
     const list = ui.tab === "recent" ? recent : ui.tab === "covers" ? withCover : [...games].sort((a, b) => a.title.localeCompare(b.title));
     if (!list.length) { box.appendChild(h("div", "note", ui.tab === "recent" ? "Nothing played yet. Pick a game below or from your library." : "No games here yet.")); return; }
     if (ui.tab === "all") {
@@ -203,12 +220,15 @@
     const box = $("#content"); box.innerHTML = "";
     const page = h("div", "page"); box.appendChild(page);
     $("#hd-title").textContent = q ? "Search" : ui.page === "catalogue" ? "Catalogue" : "Home";
+    if (q || ui.page !== "home" || state !== "ok") $("#hd-tabs").innerHTML = "";
+    document.body.dataset.page = q ? "search" : ui.page;
     if (state === "loading") { page.appendChild(h("div", "note", "Loading games from GitHub…")); return; }
     if (state === "error" && !games.length) {
       page.appendChild(h("div", "note", `Couldn't load games from GitHub. ${esc(error)} <button class="clear" id="retry">Try again</button>`));
       $("#retry").onclick = () => load(true); return;
     }
     if (q || ui.page === "catalogue") renderCatalogue(page, q); else renderHome(page);
+    stagger(page);
     // Status bar
     const consolesUsed = new Set(games.map((g) => g.console)).size;
     $("#status-left").textContent = `${games.length} game${games.length === 1 ? "" : "s"} · ${consolesUsed} console${consolesUsed === 1 ? "" : "s"}`;

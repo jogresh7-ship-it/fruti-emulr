@@ -231,3 +231,40 @@ svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width:
 .con-head img { height: 30px; width: 44px; object-fit: contain; }
 .con-head .tag { min-width: 44px; height: 28px; display: grid; place-items: center; font-size: 11px; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); }
 .con-head .n { font-size: 13px; font-weight: 600; color: var(--muted); background: var(--card-hi); border-radius: 10px; padding: 1px 8px; }
+
+/* ---------- Tabs in the top bar, with a sliding highlight ---------- */
+.tabs { display: none; }
+.hd-tabs { position: relative; display: flex; gap: 2px; padding: 4px; margin-left: 8px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); }
+.hd-tabs:empty { display: none; }
+.hd-tabs .tab { position: relative; z-index: 1; height: 30px; padding: 0 14px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-weight: 600; font-size: 13px; white-space: nowrap; transition: color .25s; }
+.hd-tabs .tab:hover { color: var(--strong); }
+.hd-tabs .tab.on { background: none; color: #151515; }
+.hd-tabs .ind { position: absolute; top: 4px; left: 0; height: 30px; width: 0; border-radius: 7px; background: #fff; box-shadow: 0 2px 10px rgba(255,255,255,.15);
+  transition: transform .35s cubic-bezier(.22,1,.36,1), width .35s cubic-bezier(.22,1,.36,1); }
+
+/* ---------- Motion: things fade and rise in, hovers glide ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.page { animation: fadein .3s ease both; }
+.card, .row, .con-head { animation: rise .5s cubic-bezier(.22,1,.36,1) both; animation-delay: calc(var(--i, 0) * 35ms); }
+.cards.boxes .card-art { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s, border-color .35s; }
+.cards.boxes .card:hover .card-art, .cards.boxes .card:focus-visible .card-art { transform: translateY(-6px) scale(1.03); box-shadow: 0 18px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.18); border-color: #555; }
+.cards.boxes .card .play { transition: opacity .25s; }
+.cards.boxes .card .play svg { transform: scale(.8); transition: transform .3s cubic-bezier(.22,1,.36,1); }
+.cards.boxes .card:hover .play svg { transform: scale(1); }
+.cards.boxes .card-title { transition: color .2s; }
+.cards.boxes .card:hover .card-title { color: #fff; }
+.card:active .card-art, .row:active { transform: scale(.97) !important; transition-duration: .1s; }
+.row { transition: transform .3s cubic-bezier(.22,1,.36,1), background .25s, border-color .25s; }
+.row:hover { transform: translateX(4px); }
+.sb-link, .sb-game, .hd-btn, .flt { transition: background .2s, color .2s, transform .2s; }
+.hd-btn:active, .sb-game:active { transform: scale(.95); }
+.content { scroll-behavior: smooth; }
+.modal:not([hidden]) { animation: fadein .2s ease both; }
+.modal:not([hidden]) .dialog { animation: rise .35s cubic-bezier(.22,1,.36,1) both; }
+.toast:not([hidden]) { animation: rise .35s cubic-bezier(.22,1,.36,1) both; }
+@media (max-width: 760px) {
+  .hd-tabs { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 20; margin: 0; box-shadow: 0 10px 30px rgba(0,0,0,.6); background: rgba(33,33,33,.92); backdrop-filter: blur(10px); }
+  .content { padding-bottom: 60px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
