@@ -185,9 +185,18 @@
     repo: R,
     url: url,
     // -> Promise of the game list
-    load: function (force) { return fetchTree(force).then(build); },
+    load: function (force) {
+      // GitHub games + games this visitor imported into this browser
+      return Promise.all([fetchTree(force).then(build).catch(function (e) { return { error: e }; }), Local.games().catch(function () { return []; })])
+        .then(function (r) {
+          if (r[0].error && !r[1].length) throw r[0].error;
+          return (r[0].error ? [] : r[0]).concat(r[1]).sort(function (a, b) { return a.title.localeCompare(b.title); });
+        });
+    },
+    local: null,   // set below
     // -> Promise of a message when parts are missing, else null. Reads only the start of the first part.
     checkParts: function (g) {
+      if (g.local) return Promise.resolve(null);
       if (g.files.length < 2 && !/\.(7z|zip)$/i.test(g.fileName)) return Promise.resolve(null);
       return bytesAt(g.urls[0], 0, 4096).then(function (b) {
         if (isCso(b)) return csoMissing(g, b);
@@ -199,6 +208,10 @@
     // which the emulator then uses as is (no extra copies: big PSP games need that on computers with
     // little memory). onProgress(loadedBytes, totalBytes)
     download: function (g, onProgress) {
+      if (g.local) return Local.get(g.key).then(function (rec) {
+        if (!rec) throw new Error("This imported game isn't in this browser any more.");
+        return rec.rom.arrayBuffer().then(function (a) { var d = new Uint8Array(a); onProgress && onProgress(d.length, d.length); return { data: d, name: nameFor(rec.fileName, d) }; });
+      });
       var total = g.size || 0, buf;
       try { buf = new Uint8Array(total); } catch (e) { return downloadAsFile(g, onProgress).then(fileToBytes); }
       var offset = 0, starts = [];
@@ -241,6 +254,47 @@
       });
     }
   };
+
+  // ---------- Imported games: saved in this browser only (IndexedDB), never uploaded ----------
+  var Local = (function () {
+    var dbp = null;
+    function db() {
+      if (!dbp) dbp = new Promise(function (ok, no) {
+        if (!window.indexedDB) return no(new Error("This browser can't save games."));
+        var r = indexedDB.open("fruti-imports", 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore("games", { keyPath: "key" }); };
+        r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); };
+      });
+      return dbp;
+    }
+    function tx(mode, fn) {
+      return db().then(function (d) { return new Promise(function (ok, no) {
+        var t = d.transaction("games", mode), st = t.objectStore("games"), out = fn(st);
+        t.oncomplete = function () { ok(out && "result" in out ? out.result : undefined); };
+        t.onerror = function () { no(t.error); }; t.onabort = function () { no(t.error || new Error("Not saved (the browser may be out of space).")); };
+      }); });
+    }
+    var coverUrls = {};
+    function toGame(rec) {
+      var con = rec.console;
+      if (!coverUrls[rec.key]) coverUrls[rec.key] = rec.coverBlob ? URL.createObjectURL(rec.coverBlob) : rec.coverUrl || "";
+      return { id: "local/" + rec.key, key: rec.key, local: true, folder: "Imported/" + rec.title, title: rec.title, console: con,
+        consoleFolder: "Imported", unsupported: false, tags: [], files: [{ path: rec.fileName, size: rec.size }], size: rec.size,
+        fileName: rec.fileName, urls: [], image: coverUrls[rec.key] || undefined, added: rec.added };
+    }
+    return {
+      games: function () { return tx("readonly", function (st) { return st.getAll(); }).then(function (list) { return (list || []).map(toGame); }); },
+      get: function (key) { return tx("readonly", function (st) { return st.get(key); }); },
+      blob: function (key) { return this.get(key).then(function (r) { if (!r) throw new Error("This imported game isn't in this browser any more."); return r.rom; }); },
+      add: function (rec) {
+        rec.key = rec.key || Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        rec.added = Date.now();
+        return tx("readwrite", function (st) { st.put(rec); }).then(function () { return rec.key; });
+      },
+      remove: function (key) { delete coverUrls[key]; return tx("readwrite", function (st) { st.delete(key); }); }
+    };
+  })();
+  window.FrutiLibrary.local = Local;
 
   // The extension the game really has (7z parts are often named .zip)
   function nameFor(name, b) {

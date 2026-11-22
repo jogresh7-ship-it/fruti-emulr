@@ -49,7 +49,7 @@
 
   <script src="consoles.js?v=16"></script>
   <script src="games.js?v=10"></script>
-  <script src="library.js?v=19"></script>
+  <script src="library.js?v=20"></script>
   <script>
   // PlayStation 2 player, using Play! (https://github.com/jpd002/Play-, BSD-2-Clause) built for the browser
   // by the "Build PS2 emulator (Play!)" GitHub Action, in ps2/. The disc is read straight from the
@@ -159,7 +159,7 @@
       var start = n * BLOCK, end = Math.min(self.size, start + BLOCK), pieces = [];
       self.parts.forEach(function (p) {
         var a = Math.max(start, p.start), z = Math.min(end, p.start + p.size);
-        if (a < z) pieces.push(rangeOf(p.url, a - p.start, z - p.start));
+        if (a < z) pieces.push(readPart(p, a - p.start, z - p.start));
       });
       var pr = Promise.all(pieces).then(function (list) {
         var out = new Uint8Array(end - start), pos = 0;
@@ -172,6 +172,9 @@
       self.loading.set(n, pr);
       return pr;
     };
+    function readPart(p, from, to) {
+      return p.blob ? p.blob.slice(from, to).arrayBuffer().then(function (a) { return new Uint8Array(a); }) : rangeOf(p.url, from, to);
+    }
     function rangeOf(url, from, to, tries) {
       tries = tries || 0;
       return fetchFile(url, { headers: { Range: "bytes=" + from + "-" + (to - 1) } }).then(function (r) {
@@ -281,8 +284,11 @@
       if (g.problem) { show(g.title, g.problem); return; }
       if (!threadsReady(g)) return;
       show(g.title, "Checking the game files…");
-      var parts = g.files.map(function (f, i) { return { url: g.urls[i], size: f.size }; });
-      return rangeOf(parts[0].url, 0, Math.min(16, parts[0].size)).then(function (head) {
+      // Imported games are read from this browser's storage, the others from the site
+      var partsP = g.local ? FrutiLibrary.local.blob(g.key).then(function (b) { return [{ blob: b, size: b.size }]; })
+        : Promise.resolve(g.files.map(function (f, i) { return { url: g.urls[i], size: f.size }; }));
+      var parts;
+      return partsP.then(function (p) { parts = p; return readPart(parts[0], 0, Math.min(16, parts[0].size)); }).then(function (head) {
         var name = discName(head, g.fileName);
         if (name === "archive") {
           show(g.title, "PS2 games can't be zipped or 7-zipped: the PS2 emulator reads the disc while you play. Upload the .iso (or a .cso / .chd) instead; big ones can be split into parts like My Game.iso.001, .002, …");

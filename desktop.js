@@ -26,6 +26,7 @@
   let games = [], state = "loading", error = "";
   const ICON = {
     play: `<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/></svg>`,
+    trash: `<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`,
     warn: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>`,
   };
   const fmt = (ms) => { const m = Math.floor((ms || 0) / 60000); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
@@ -94,8 +95,17 @@
     el.appendChild(h("div", "row-info", `<div class="row-title">${esc(g.title)}</div>
       <div class="row-meta"><span class="pill">${esc(c.tag)}</span><span>${esc(c.name)}</span><span>· ${esc(mb(g.size))}</span>
       ${times[g.id] >= 60000 ? `<span>· ${esc(fmt(times[g.id]))} played</span>` : ""}${last ? `<span>· last played ${esc(ago(last))}</span>` : ""}
-      ${g.problem ? `<span class="pill" style="background:#8a2020;border-color:#8a2020">${esc(problemLabel(g.problem))}</span>` : ""}</div>`));
+      ${g.local ? `<span class="pill mine">Imported</span>` : ""}${g.problem ? `<span class="pill" style="background:#8a2020;border-color:#8a2020">${esc(problemLabel(g.problem))}</span>` : ""}</div>`));
     el.appendChild(h("span", "row-play", blocked ? ICON.warn : ICON.play));
+    if (g.local) {
+      const del = h("span", "row-del", ICON.trash); del.setAttribute("role", "button"); del.title = "Remove from this browser";
+      del.onclick = (e) => {
+        e.stopPropagation();
+        if (!confirm(`Remove "${g.title}" from this browser?`)) return;
+        FrutiLibrary.local.remove(g.key).then(() => { toast(`Removed ${g.title}.`); load(false); });
+      };
+      el.appendChild(del);
+    }
     el.onclick = () => play(g);
     return el;
   }
@@ -226,6 +236,60 @@
       .then(render);
   }
 
+  // ---------- Import a game (saved in this browser only) ----------
+  const EXT_GUESS = {};
+  CONSOLES.forEach((c) => (c.ext || []).forEach((e) => { if (!EXT_GUESS[e]) EXT_GUESS[e] = c.id; }));
+  Object.assign(EXT_GUESS, { ".iso": "psp", ".cso": "psp", ".bin": "psx", ".cue": "psx", ".chd": "psx" });
+  let impCover = null;   // Blob
+  function openImport() {
+    const sel = $("#imp-console");
+    if (!sel.options.length) {
+      sel.appendChild(new Option("Choose the console…", ""));
+      CONSOLES.forEach((c) => sel.appendChild(new Option(c.name, c.id)));
+    }
+    $("#imp-form").reset(); impCover = null; showPrev(""); $("#imp-err").hidden = true;
+    $("#imp").hidden = false; $("#imp-rom").focus();
+  }
+  function closeImport() { $("#imp").hidden = true; }
+  function showPrev(url) { const p = $("#imp-prev"); p.style.backgroundImage = url ? `url("${url}")` : ""; p.classList.toggle("has", !!url); }
+  function impError(msg) { const e = $("#imp-err"); e.textContent = msg; e.hidden = !msg; }
+  $("#import").onclick = openImport;
+  $("#imp-close").onclick = $("#imp-cancel").onclick = closeImport;
+  $("#imp-form").addEventListener("input", () => impError(""));
+  $("#imp-form").addEventListener("change", () => impError(""));
+  $("#imp").addEventListener("mousedown", (e) => { if (e.target.id === "imp") closeImport(); });
+  $("#imp-rom").onchange = () => {
+    const f = $("#imp-rom").files[0]; if (!f) return;
+    const ext = (/\.[a-z0-9]+$/i.exec(f.name) || [""])[0].toLowerCase();
+    if (!$("#imp-title").value) $("#imp-title").value = f.name.replace(/\.[^.]+$/, "").replace(/_ /g, ": ").replace(/\s*\((USA|Europe|Japan|En|[A-Z][a-z]?(,[A-Z][a-z]?)*)[^)]*\)/g, "").trim();
+    if (EXT_GUESS[ext] && !$("#imp-console").value) $("#imp-console").value = EXT_GUESS[ext];
+    if (/\.iso$/i.test(f.name) && f.size > 760 * 1048576) $("#imp-console").value = "ps2";
+  };
+  $("#imp-cover").onchange = () => {
+    const f = $("#imp-cover").files[0];
+    impCover = f || null; if (f) { $("#imp-url").value = ""; showPrev(URL.createObjectURL(f)); } else showPrev("");
+  };
+  $("#imp-url").oninput = () => {
+    const u = $("#imp-url").value.trim();
+    if (u) { impCover = null; $("#imp-cover").value = ""; }
+    showPrev(/^https?:\/\/\S+$/i.test(u) ? u : "");
+  };
+  $("#imp-form").onsubmit = (e) => {
+    e.preventDefault(); impError("");
+    const rom = $("#imp-rom").files[0], con = $("#imp-console").value, title = $("#imp-title").value.trim(), url = $("#imp-url").value.trim();
+    if (!rom) return impError("Choose the game file.");
+    if (!con) return impError("Choose which console the game is for.");
+    if (!title) return impError("Type the game's name.");
+    if (!impCover && !url) return impError("Add a cover picture: choose a PNG / JPG, or paste a link to one.");
+    if (url && !/^https?:\/\/\S+$/i.test(url)) return impError("The picture link must start with https://");
+    if (con === "ps2" && /\.(zip|7z|rar)$/i.test(rom.name)) return impError("PS2 games can't be zipped: import the .iso (or .cso / .chd) instead.");
+    const btn = $("#imp-save"); btn.disabled = true; btn.textContent = "Saving…";
+    FrutiLibrary.local.add({ title, console: con, fileName: rom.name, size: rom.size, rom, coverBlob: impCover || null, coverUrl: impCover ? "" : url })
+      .then(() => { closeImport(); toast(`Imported ${title}. It's saved in this browser.`); ui.page = "catalogue"; saveUi(); load(false); })
+      .catch((err) => impError("Couldn't save it: " + (err && err.message || err) + (rom.size > 1073741824 ? " Big games may not fit in the browser's storage." : "")))
+      .then(() => { btn.disabled = false; btn.textContent = "Import"; });
+  };
+
   // ---------- Events ----------
   document.querySelectorAll(".sb-link").forEach((b) => b.onclick = () => {
     ui.page = b.dataset.page; saveUi(); $("#search").value = ""; document.body.classList.remove("menu-open"); render(); $("#content").scrollTop = 0;
@@ -237,6 +301,7 @@
   $("#scrim").onclick = () => document.body.classList.remove("menu-open");
   document.addEventListener("keydown", (e) => {
     if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $("#search").focus(); }
+    if (e.key === "Escape" && !$("#imp").hidden) { closeImport(); return; }
     if (e.key === "Escape") { $("#search").value = ""; $("#search").blur(); document.body.classList.remove("menu-open"); render(); }
   });
   // Coming back from a game (back button / bfcache): refresh play times
