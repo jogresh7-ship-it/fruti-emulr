@@ -66,6 +66,37 @@
     });
   }
 
+  // ---------- Downloaded games are kept in the browser (Cache Storage) ----------
+  // So a reload, or playing the same game again, doesn't download it all again. The few most
+  // recently played games are kept (up to about 3 GB); older ones are removed.
+  var GAME_CACHE = "fruti-games-v1", CACHE_MAX = 3 * 1073741824;
+  function cachedFile(u, size) {
+    if (!window.caches || !window.isSecureContext) return getFile(u);
+    return caches.open(GAME_CACHE).then(function (c) {
+      return c.match(u).then(function (hit) {
+        var len = hit && +hit.headers.get("content-length");
+        if (hit && (!size || !len || len === size)) return hit;
+        return getFile(u).then(function (r) {
+          if (r.ok && r.status === 200) { try { c.put(u, r.clone()).catch(function () {}); } catch (e) {} }
+          return r;
+        });
+      });
+    }).catch(function () { return getFile(u); });
+  }
+  function rememberCached(g) {
+    if (!window.caches || g.local) return;
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem("fruti:cached") || "[]"); } catch (e) {}
+    list = list.filter(function (x) { return x.id !== g.id; });
+    list.unshift({ id: g.id, urls: g.urls, size: g.size || 0 });
+    var total = 0, keep = [], drop = [];
+    list.forEach(function (x, i) { total += x.size; (i === 0 || total <= CACHE_MAX ? keep : drop).push(x); });
+    try { localStorage.setItem("fruti:cached", JSON.stringify(keep)); } catch (e) {}
+    if (drop.length) caches.open(GAME_CACHE).then(function (c) {
+      drop.forEach(function (x) { x.urls.forEach(function (u) { c.delete(u); }); });
+    }).catch(function () {});
+  }
+
   var KEY = "fruti:tree:" + R.owner + "/" + R.name;
   function readCache() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
   function writeCache(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
@@ -218,7 +249,7 @@
       return g.urls.reduce(function (p, u, i) {
         return p.then(function () {
           starts.push(offset);
-          return getFile(u).then(function (r) {
+          return cachedFile(u, g.files[i] && g.files[i].size).then(function (r) {
             if (!r.ok) throw new Error("Could not download " + decodeURIComponent(u.split("/").pop()) + " (" + r.status + ")");
             var reader = r.body.getReader();
             var pump = function () {
@@ -238,6 +269,7 @@
         });
       }, Promise.resolve()).then(function () {
         if (offset !== buf.length) throw new Error("size-mismatch");
+        rememberCached(g);
         // Parts that are each their own zip need unpacking first: do that the old way (rare)
         var check = g.urls.length < 2 ? Promise.resolve(false) : Promise.all([
           zipEntries(new Blob([buf.subarray(0, starts[1])])), zipEntries(new Blob([buf.subarray(starts[1], starts[2] || buf.length)]))
@@ -312,10 +344,10 @@
   // The old way: each part as a Blob, joined into a File (uses more memory)
   function downloadAsFile(g, onProgress) {
       var total = g.size || 0, done = 0, blobs = [];
-      return g.urls.reduce(function (p, u) {
+      return g.urls.reduce(function (p, u, i) {
         return p.then(function () {
           var first = !blobs.length;
-          return getFile(u).then(function (r) {
+          return cachedFile(u, g.files[i] && g.files[i].size).then(function (r) {
             if (!r.ok) throw new Error("Could not download " + decodeURIComponent(u.split("/").pop()) + " (" + r.status + ")");
             if (!r.body || !r.body.getReader) return r.blob().then(function (b) { done += b.size; onProgress && onProgress(done, total); blobs.push(b); });
             var reader = r.body.getReader(), chunks = [];

@@ -61,7 +61,7 @@
   <div id="game"><div class="msg">Loading…</div></div>
   <script src="consoles.js?v=16"></script>
   <script src="games.js?v=10"></script>
-  <script src="library.js?v=20"></script>
+  <script src="library.js?v=21"></script>
   <script>
     // Console player (EmulatorJS). emu.html?game=rom/<Console>/<Game Name>
     // Only games found in the repo's rom/ folder can be played.
@@ -293,7 +293,7 @@
         // Once the emulator has its own copy of the game, let the downloaded copy go (frees memory)
         var release = setInterval(function () {
           var emu = window.EJS_emulator;
-          if (emu && (emu.started || emu.failedToStart)) { clearInterval(release); window.EJS_gameUrl = null; game = null; }
+          if (emu && (emu.started || emu.failedToStart)) { clearInterval(release); window.EJS_gameUrl = null; game = null; try { sessionStorage.removeItem(tryKey); } catch (e) {} }
         }, 1000);
         watchEmulatorProgress();
         backButtonWhilePlaying();
@@ -355,11 +355,33 @@
         FrutiLibrary.checkParts(g).then(function (missing) {
           if (missing) { show(g.title, missing); return; }
           if (g.console === "psp" && !pspReady(g)) return;
+          if (crashedBefore(g)) return;
           downloadAndStart(g);
         });
       }).catch(function (e) {
         show("Couldn't load the game list from GitHub.", e.message);
       });
+
+      // If the page restarts while a game is starting (the browser ran out of memory and reloaded
+      // the tab), don't loop forever: after two restarts, explain and wait for a click.
+      var tryKey = "fruti:starting:" + id;
+      function crashedBefore(g) {
+        var t = {}; try { t = JSON.parse(sessionStorage.getItem(tryKey) || "{}"); } catch (e) {}
+        var recent = t.at && Date.now() - t.at < 5 * 60000, n = recent ? t.n || 0 : 0;
+        if (n >= 2) {
+          var box = document.createElement("div");
+          box.innerHTML = '<p style="max-width:520px;margin:0 auto 14px;color:#bbb"></p><button class="btn" style="cursor:pointer;padding:10px 20px;border:0;border-radius:6px;font-weight:700"></button>';
+          box.querySelector("p").textContent = "The page restarted " + n + " times while starting this game. That usually means the browser ran out of memory. " +
+            "Close other tabs and apps, then try again" + (g.console === "psp" ? " (PSP games need a computer with plenty of memory)" : "") +
+            ". The game is saved in the browser now, so it won't download again.";
+          box.querySelector("button").textContent = "Try again";
+          box.querySelector("button").onclick = function () { sessionStorage.removeItem(tryKey); location.reload(); };
+          show(g.title, ""); stage.querySelector(".msg").appendChild(box);
+          return true;
+        }
+        try { sessionStorage.setItem(tryKey, JSON.stringify({ n: n + 1, at: Date.now() })); } catch (e) {}
+        return false;
+      }
 
       function downloadAndStart(g) {
         stage.innerHTML = '<div class="msg"><b></b><div class="bar"><i></i></div><span></span><span class="eta"></span></div>';
