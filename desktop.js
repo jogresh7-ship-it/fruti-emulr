@@ -858,6 +858,41 @@
     requestAnimationFrame(poll);
   })();
 
+  // ---------- Settings: highlight colour + solid / liquid-glass look ----------
+  const ACCENTS = [["White", "#ffffff"], ["Blue", "#4da3ff"], ["Cyan", "#22d3ee"], ["Purple", "#a78bfa"], ["Pink", "#f472b6"],
+    ["Red", "#f87171"], ["Orange", "#fb923c"], ["Yellow", "#facc15"], ["Green", "#4ade80"]];
+  const theme = Object.assign({ accent: "#ffffff", look: "solid" }, store.get("theme", {}));
+  function applyTheme() {
+    const root = document.documentElement, hex = theme.accent;
+    const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    root.style.setProperty("--accent", hex);
+    root.style.setProperty("--accent-rgb", `${r},${g},${b}`);
+    root.style.setProperty("--on-accent", (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#151515" : "#ffffff");
+    document.body.classList.toggle("glass", theme.look === "glass");
+    document.body.classList.toggle("accented", hex !== "#ffffff");
+    requestAnimationFrame(moveInd);
+  }
+  function openSettings() {
+    const sw = $("#set-accent");
+    sw.innerHTML = "";
+    ACCENTS.forEach(([name, hex]) => {
+      const b = h("button", "swatch" + (theme.accent === hex ? " on" : ""));
+      b.type = "button"; b.title = name; b.style.setProperty("--c", hex); b.setAttribute("aria-label", name);
+      b.onclick = () => { theme.accent = hex; store.set("theme", theme); applyTheme(); sw.querySelectorAll(".swatch").forEach((x) => x.classList.toggle("on", x === b)); };
+      sw.appendChild(b);
+    });
+    document.querySelectorAll('input[name="look"]').forEach((r) => { r.checked = r.value === theme.look; });
+    $("#set").hidden = false;
+  }
+  const closeSettings = () => { $("#set").hidden = true; };
+  document.querySelectorAll('input[name="look"]').forEach((r) => r.onchange = () => { theme.look = r.value; store.set("theme", theme); applyTheme(); });
+  $("#settings").onclick = openSettings;
+  $("#set-close").onclick = $("#set-done").onclick = closeSettings;
+  $("#set").addEventListener("mousedown", (e) => { if (e.target.id === "set") closeSettings(); });
+  $("#set-reset").onclick = () => { theme.accent = "#ffffff"; theme.look = "solid"; store.set("theme", theme); applyTheme(); openSettings(); };
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#set").hidden) closeSettings(); });
+  applyTheme();
+
   // ---------- Soft ripple wherever a button is clicked ----------
   if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     document.addEventListener("pointerdown", (e) => {

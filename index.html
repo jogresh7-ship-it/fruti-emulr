@@ -6,7 +6,7 @@
   <title>Fruti Emulr</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ffffff'/%3E%3Cpath d='M11 9h11v3.5h-7v3h6v3.5h-6V24h-4z' fill='%23151515'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="fonts.css?v=1">
-  <link rel="stylesheet" href="desktop.css?v=37">
+  <link rel="stylesheet" href="desktop.css?v=38">
 </head>
 <body>
   <div class="app">
@@ -47,6 +47,9 @@
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
           <input id="search" type="search" placeholder="Search games" autocomplete="off">
         </label>
+        <button class="hd-btn" id="settings" title="Settings: highlight colour and glass look" aria-label="Settings">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
         <button class="hd-btn hd-import" id="import" title="Import a game into this browser">
           <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg><span>Import</span>
         </button>
@@ -103,11 +106,27 @@
     </form>
   </div>
 
+  <!-- Settings: highlight colour and glass look (saved in this browser) -->
+  <div class="modal" id="set" hidden>
+    <div class="dialog set-dialog" role="dialog" aria-modal="true" aria-labelledby="set-t">
+      <div class="dlg-head"><h2 id="set-t">Settings</h2><button type="button" class="hd-btn" id="set-close" aria-label="Close">✕</button></div>
+      <div class="fld"><span>Highlight colour</span>
+        <small>The outline and highlight on whatever you hover, click or pick.</small>
+        <div class="swatches" id="set-accent"></div></div>
+      <div class="fld"><span>Look</span>
+        <div class="seg" id="set-look">
+          <label><input type="radio" name="look" value="solid"><b>Solid</b><small>Dark and simple</small></label>
+          <label><input type="radio" name="look" value="glass"><b>Liquid glass</b><small>See-through, frosted panels</small></label>
+        </div></div>
+      <div class="dlg-foot"><button type="button" class="linkbtn" id="set-reset">Back to default</button><span class="grow"></span><button type="button" class="btn btn-white" id="set-done">Done</button></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast" hidden></div>
 
   <script src="consoles.js?v=16"></script>
   <script>document.write('<script src="games.js?t=' + Math.floor(Date.now() / 60000) + '"><\/script>');</script>
   <script src="library.js?v=24"></script>
-  <script src="desktop.js?v=43"></script>
+  <script src="desktop.js?v=44"></script>
 </body>
 </html>
