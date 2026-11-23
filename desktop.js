@@ -210,7 +210,15 @@
         const head = h("button", "con-head", `${c.icon ? `<img src="${esc(abs(c.icon))}" alt="">` : `<span class="tag">${esc(c.tag)}</span>`}<span>${esc(c.name)}</span><span class="n">${mine.length}</span>`);
         head.title = "Show only " + c.name + " games";
         head.onclick = () => { ui.page = "catalogue"; ui.filters = [c.id]; saveUi(); render(); $("#content").scrollTop = 0; };
-        sec.appendChild(head);
+        const bar = h("div", "con-bar"); bar.appendChild(head);
+        const remote = mine.filter((g) => !g.local && !g.problem);
+        if (remote.length) {
+          const dl = h("button", "con-dl", `${ICON.down}<span>Download all</span>`);
+          dl.title = `Download every ${c.name} game as one zip (a folder per game, with covers)`;
+          dl.onclick = () => downloadConsole(c, remote, dl);
+          bar.appendChild(dl);
+        }
+        sec.appendChild(bar);
         const grid = h("div", "cards boxes"); mine.forEach((g) => grid.appendChild(card(g))); sec.appendChild(grid);
         box.appendChild(sec);
       });
@@ -323,6 +331,143 @@
     } finally { downloading = false; btn.classList.remove("busy"); }
   }
 
+  // ---------- Zip files (no compression), made and read right in the browser ----------
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  async function crcOf(blob) {
+    let c = 0xffffffff;
+    for (let at = 0; at < blob.size; at += 8 * MB) {
+      const b = new Uint8Array(await blob.slice(at, at + 8 * MB).arrayBuffer());
+      for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8);
+    }
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  async function makeZip(entries, onFile) {   // entries: [{ name, blob }]
+    const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i], name = enc.encode(e.name), crc = await crcOf(e.blob), size = e.blob.size;
+      onFile && onFile(i, entries.length);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true); lh.setUint16(26, name.length, true);
+      parts.push(lh.buffer, name, e.blob);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true); ch.setUint16(28, name.length, true); ch.setUint32(42, off, true);
+      central.push(ch.buffer, name);
+      off += 30 + name.length + size;
+      if (off > 0xffffffff) throw new Error("this console's games add up to over 4 GB, too big for one zip. Download the games one by one in the Catalogue instead.");
+    }
+    const cdSize = central.reduce((a, x) => a + (x.byteLength || x.length), 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+    end.setUint32(12, cdSize, true); end.setUint32(16, off, true);
+    return new Blob([...parts, ...central, end.buffer], { type: "application/zip" });
+  }
+  async function readZip(file) {   // -> [{ name, size, blob() }]
+    const tail = new Uint8Array(await file.slice(Math.max(0, file.size - 65600)).arrayBuffer());
+    let e = -1; for (let i = tail.length - 22; i >= 0; i--) if (tail[i] === 0x50 && tail[i + 1] === 0x4b && tail[i + 2] === 5 && tail[i + 3] === 6) { e = i; break; }
+    if (e < 0) return null;
+    const dv = new DataView(tail.buffer, e), count = dv.getUint16(10, true), cdSize = dv.getUint32(12, true), cdOff = dv.getUint32(16, true);
+    if (cdOff === 0xffffffff) return null;   // zip64: not handled
+    const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer()), dec = new TextDecoder(), out = [];
+    for (let p = 0, k = 0; k < count && p + 46 <= cd.byteLength; k++) {
+      if (cd.getUint32(p, true) !== 0x02014b50) break;
+      const method = cd.getUint16(p + 10, true), csize = cd.getUint32(p + 20, true), size = cd.getUint32(p + 24, true);
+      const nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true), lho = cd.getUint32(p + 42, true);
+      const name = dec.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nl));
+      p += 46 + nl + xl + cl;
+      if (name.endsWith("/")) continue;
+      out.push({ name, size, blob: async () => {
+        const lh = new DataView(await file.slice(lho, lho + 30).arrayBuffer());
+        const start = lho + 30 + lh.getUint16(26, true) + lh.getUint16(28, true), data = file.slice(start, start + csize);
+        if (method === 0) return data;
+        if (method === 8 && window.DecompressionStream) return new Response(data.stream().pipeThrough(new DecompressionStream("deflate-raw"))).blob();
+        throw new Error("this zip uses a compression the browser can't open: " + name);
+      } });
+    }
+    return out;
+  }
+
+  // ---------- Download every game of a console as one zip ----------
+  async function downloadConsole(c, list, btn) {
+    if (downloading) { toast("A download is already running. Wait for it to finish."); return; }
+    const total = list.reduce((a, g) => a + (g.size || 0), 0);
+    if (!confirm(`Download all ${list.length} ${c.name} games (${mb(total)}) as one zip?`)) return;
+    downloading = true; btn.classList.add("busy");
+    try {
+      const entries = []; let done = 0;
+      for (const g of list) {
+        const folder = `${c.folder || c.tag}/${g.folder.split("/").pop().replace(/\.[a-z0-9]+$/i, (m) => g.loose ? "" : m)}`;
+        for (let i = 0; i < g.urls.length; i++) {
+          const r = await fetch(g.urls[i]);
+          if (!r.ok) throw new Error(`${g.title}: a part couldn't be downloaded (${r.status})`);
+          const b = await r.blob(); done += b.size;
+          toast(`Downloading ${c.name} games: ${mb(done)} of ${mb(total)} (${g.title})…`);
+          entries.push({ name: `${folder}/${g.files[i].path.split("/").pop()}`, blob: b });
+        }
+        if (g.image) {
+          try { const r = await fetch(g.image); if (r.ok) { const b = await r.blob(); entries.push({ name: `${folder}/cover${/png/.test(b.type) ? ".png" : /webp/.test(b.type) ? ".webp" : ".jpg"}`, blob: b }); } } catch {}
+        }
+      }
+      const zip = await makeZip(entries, (i, n) => toast(`Packing the zip: file ${i + 1} of ${n}…`));
+      const a = document.createElement("a"); a.href = URL.createObjectURL(zip); a.download = `${c.folder || c.tag} games.zip`;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 300000);
+      toast(`Saved "${a.download}" (${list.length} games, ${mb(zip.size)}). Import it to upload them all.`);
+    } catch (e) { toast("Download failed: " + (e.message || e)); }
+    finally { downloading = false; btn.classList.remove("busy"); }
+  }
+
+  // ---------- Import a zip of game folders (Console/Game/files): every game is found and sorted ----------
+  let bulk = null;
+  function bulkFrom(entries) {
+    const map = FrutiLibrary.CONSOLE_FOLDERS || {}, games = {};
+    entries.forEach((e) => {
+      const parts = e.name.replace(/^rom\//i, "").split("/").filter(Boolean);
+      if (parts.length < 3 || /(^|\/)(\.|__MACOSX)/.test(e.name)) return;
+      const conId = map[parts[0].toLowerCase()]; if (!conId) return;
+      const key = parts[0] + "/" + parts[1], g = games[key] || (games[key] = { con: conId, folder: parts[1], files: [], cover: null, size: 0 });
+      const file = parts.slice(2).join(" ");
+      if (/^cover\.(png|jpe?g|webp)$/i.test(file) || /\.(png|jpe?g|webp)$/i.test(file) && !g.cover) { g.cover = e; return; }
+      if (/\.(md|txt|json)$/i.test(file)) return;
+      g.files.push({ name: file, e }); g.size += e.size;
+    });
+    return Object.values(games).filter((g) => g.files.length);
+  }
+  function setBulk(list) {
+    bulk = list && list.length ? list : null;
+    ["#imp-console", "#imp-title", "#imp-prev"].forEach((sel) => { const f = $(sel).closest(".fld"); if (f) f.hidden = !!bulk; });
+    $("#imp-console").required = $("#imp-title").required = !bulk;
+    let box = $("#imp-bulk");
+    if (!box) { box = h("div", "imp-bulk"); box.id = "imp-bulk"; $("#imp-rom").closest(".fld").after(box); }
+    box.hidden = !bulk;
+    if (bulk) box.innerHTML = `<b>Found ${bulk.length} game${bulk.length === 1 ? "" : "s"} in this zip</b><small>Each one goes to its own console folder automatically.</small><ul>` +
+      bulk.map((g) => `<li><span class="pill">${esc(consoleOf(g.con).tag)}</span>${esc(g.folder)}<em>${esc(mb(g.size))}${g.cover ? " · cover" : ""}</em></li>`).join("") + "</ul>";
+  }
+  async function bulkImport(btn) {
+    const toGit = ownerToken() && (document.querySelector('input[name="dest"]:checked') || {}).value === "github";
+    btn.disabled = true; let ok = 0; const failed = [];
+    for (let i = 0; i < bulk.length; i++) {
+      const g = bulk[i], c = consoleOf(g.con);
+      btn.textContent = `${i + 1} of ${bulk.length}…`;
+      try {
+        const blobs = []; for (const f of g.files) blobs.push({ name: f.name, blob: await f.e.blob() });
+        const cover = g.cover ? await g.cover.blob() : null;
+        if (toGit) await ghPutFiles(`rom/${c.folder || c.tag}/${g.folder}/`, blobs, cover, `Add ${g.folder} (${c.name})`, g.con, (t, p) => {
+          const pr = $("#imp-prog"); pr.hidden = false; pr.querySelector("small").textContent = `${g.folder}: ${t}`; if (p != null) pr.querySelector("i").style.width = Math.round(p * 100) + "%";
+        });
+        else {
+          const whole = new Blob(blobs.map((x) => x.blob)), name = blobs[0].name.replace(/[\s._-]*(\.part\d+|\(part\s*\d+\))(?=\.)/i, "");
+          await FrutiLibrary.local.add({ title: g.folder.replace(/_ /g, ": "), console: g.con, fileName: name, size: whole.size, rom: whole, coverBlob: cover, coverUrl: "" });
+        }
+        ok++;
+      } catch (e) { failed.push(`${g.folder}: ${e.message || e}`); }
+    }
+    btn.disabled = false; btn.textContent = toGit ? "Upload" : "Import"; $("#imp-prog").hidden = true;
+    if (failed.length) impError(`Done ${ok} of ${bulk.length}. Not done: ` + failed.join(" · "));
+    else { closeImport(); toast(toGit ? `Uploaded ${ok} games to GitHub. Big PSP / PS2 games are being converted (10–20 min).` : `Imported ${ok} games into this browser.`); }
+    setTimeout(() => load(true), 1500);
+  }
+
   // ---------- Import a game (saved in this browser only) ----------
   const EXT_GUESS = {};
   CONSOLES.forEach((c) => (c.ext || []).forEach((e) => { if (!EXT_GUESS[e]) EXT_GUESS[e] = c.id; }));
@@ -338,7 +483,7 @@
     ownerUi();
     $("#imp").hidden = false; $("#imp-rom").focus();
   }
-  function closeImport() { $("#imp").hidden = true; $("#owner").hidden = true; }
+  function closeImport() { setBulk(null); $("#imp").hidden = true; $("#owner").hidden = true; }
   function showPrev(url) { const p = $("#imp-prev"); p.style.backgroundImage = url ? `url("${url}")` : ""; p.classList.toggle("has", !!url); }
   function impError(msg) { const e = $("#imp-err"); e.textContent = msg; e.hidden = !msg; }
   $("#import").onclick = openImport;
@@ -347,7 +492,8 @@
   $("#imp-form").addEventListener("change", () => impError(""));
   $("#imp").addEventListener("mousedown", (e) => { if (e.target.id === "imp") closeImport(); });
   $("#imp-rom").onchange = () => {
-    const f = $("#imp-rom").files[0]; if (!f) return;
+    const f = $("#imp-rom").files[0]; setBulk(null); if (!f) return;
+    if (/\.zip$/i.test(f.name)) readZip(f).then((list) => { if (list && $("#imp-rom").files[0] === f) { const b = bulkFrom(list); if (b.length) setBulk(b); } }).catch(() => {});
     const ext = (/\.[a-z0-9]+$/i.exec(f.name) || [""])[0].toLowerCase();
     if (!$("#imp-title").value) $("#imp-title").value = f.name.replace(/\.[^.]+$/, "").replace(/_ /g, ": ").replace(/\s*\((USA|Europe|Japan|En|[A-Z][a-z]?(,[A-Z][a-z]?)*)[^)]*\)/g, "").trim();
     if (EXT_GUESS[ext] && !$("#imp-console").value) $("#imp-console").value = EXT_GUESS[ext];
@@ -364,6 +510,7 @@
   };
   $("#imp-form").onsubmit = (e) => {
     e.preventDefault(); impError("");
+    if (bulk) return bulkImport($("#imp-save"));
     const rom = $("#imp-rom").files[0], con = $("#imp-console").value, title = $("#imp-title").value.trim(), url = $("#imp-url").value.trim();
     if (!rom) return impError("Choose the game file.");
     if (!con) return impError("Choose which console the game is for.");
@@ -483,6 +630,47 @@
   const b64 = (blob) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
   let converting = "";
   const archiveKind = (f) => bytesOf(f, 0, 4).then((b) => b[0] === 0x37 && b[1] === 0x7a ? "7z" : b[0] === 0x50 && b[1] === 0x4b ? "zip" : "");
+  // Upload a game's files (already named, e.g. parts) + cover to dir in the games repo, in one commit
+  async function ghPutFiles(dir, files, cover, message, con, say) {
+    const R = FrutiLibrary.gamesRepo, api = `https://api.github.com/repos/${R.owner}/${R.name}`;
+    const H = { Authorization: "Bearer " + ownerToken(), Accept: "application/vnd.github+json", "Content-Type": "application/json" };
+    const call = (path, opts) => fetch(api + path, Object.assign({ headers: H }, opts)).then((r) => r.json().then((j) => {
+      if (!r.ok) throw new Error(/not accessible by/i.test(j.message || "") ? "your GitHub token can't write to rom-games-fruti (edit it: add that repo, Contents: Read and write)" : `GitHub: ${j.message || r.status}`);
+      return j;
+    }));
+    // Anything over 25 MB is cut into parts first
+    const pieces = [];
+    files.forEach((f) => {
+      if (f.blob.size <= PART) { pieces.push(f); return; }
+      const ext = (/\.[a-z0-9]+$/i.exec(f.name) || [""])[0], base = f.name.slice(0, f.name.length - ext.length), n = Math.ceil(f.blob.size / PART);
+      for (let i = 0; i < n; i++) pieces.push({ name: `${base}.part${String(i + 1).padStart(3, "0")}${ext}`, blob: f.blob.slice(i * PART, (i + 1) * PART) });
+    });
+    const tree = [];
+    for (let i = 0; i < pieces.length; i++) {
+      say(`uploading part ${i + 1} of ${pieces.length}…`, i / (pieces.length + 1));
+      const b = await call("/git/blobs", { method: "POST", body: JSON.stringify({ content: await b64(pieces[i].blob), encoding: "base64" }) });
+      tree.push({ path: dir + pieces[i].name, mode: "100644", type: "blob", sha: b.sha });
+    }
+    if (cover) {
+      const b = await call("/git/blobs", { method: "POST", body: JSON.stringify({ content: await b64(cover), encoding: "base64" }) });
+      tree.push({ path: dir + "cover" + (/png/.test(cover.type) ? ".png" : /webp/.test(cover.type) ? ".webp" : ".jpg"), mode: "100644", type: "blob", sha: b.sha });
+    }
+    say("saving…", pieces.length / (pieces.length + 1));
+    for (let attempt = 0; ; attempt++) {
+      const ref = await call("/git/ref/heads/main"), base = await call("/git/commits/" + ref.object.sha);
+      const t = await call("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: base.tree.sha, tree }) });
+      const cm = await call("/git/commits", { method: "POST", body: JSON.stringify({ message, tree: t.sha, parents: [ref.object.sha] }) });
+      try { await call("/git/refs/heads/main", { method: "PATCH", body: JSON.stringify({ sha: cm.sha }) }); break; }
+      catch (e) { if (attempt >= 2) throw e; }
+    }
+    // Zipped PS2 games and big zipped PSP games: have GitHub turn them into a playable disc
+    const head = new Uint8Array(await files[0].blob.slice(0, 4).arrayBuffer());
+    const archive = (head[0] === 0x37 && head[1] === 0x7a) || (head[0] === 0x50 && head[1] === 0x4b);
+    const size = files.reduce((a, f) => a + f.blob.size, 0);
+    if (archive && (con === "ps2" || (con === "psp" && size > 400 * MB)))
+      await fetch(api + "/actions/workflows/psp-cso.yml/dispatches", { method: "POST", headers: H, body: JSON.stringify({ ref: "main", inputs: { game: dir.split("/").filter(Boolean).pop() } }) }).catch(() => {});
+  }
+
   async function ghUpload({ rom, con, title, cover, coverUrl }) {
     converting = "";
     const R = FrutiLibrary.gamesRepo, api = `https://api.github.com/repos/${R.owner}/${R.name}`;
