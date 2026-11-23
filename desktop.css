@@ -393,3 +393,4 @@ body.scrolled .header { background: rgba(21,21,21,.78); backdrop-filter: saturat
 .fn-link { color: var(--muted); font-size: 13px; font-weight: 600; transition: color .2s; }
 .fn-link:hover { color: var(--strong); }
 .fn-ok { height: 36px; padding: 0 18px; border-radius: 10px; }
+.card-art .warn.popup { background: rgba(42,58,90,.95); color: #cfe0ff; }

@@ -56,10 +56,22 @@
   const IN_FRAME = (() => { try { return window.self !== window.top; } catch { return true; } })();
   const FRAME_BLOCKED = { psp: true, ps2: true };
   const frameBlocked = (g) => IN_FRAME && FRAME_BLOCKED[g.console];
-  const FRAME_MSG = "This game doesn't work in an iframe. Open the site in its own tab to play it.";
+  // Their own window can switch multi-threading on, so in an iframe these games open in a pop-up player.
+  function playInPopup(g) {
+    const url = abs(`${g.console === "ps2" ? "ps2" : "emu"}.html?v=${VERSION}&popup=1&game=${encodeURIComponent(g.id)}`);
+    const w = Math.min(1280, screen.availWidth - 40), hgt = Math.min(800, screen.availHeight - 60);
+    const win = window.open(url, "fruti-game", `popup=yes,width=${w},height=${hgt},left=${Math.max(0, (screen.availWidth - w) / 2)},top=${Math.max(0, (screen.availHeight - hgt) / 3)}`);
+    if (!win) { toast("Your browser blocked the pop-up. Allow pop-ups for this site, then click the game again."); return; }
+    try { win.focus(); } catch {}
+    toast(`${g.title} opened in a pop-up window.`);
+  }
 
   function play(g) {
-    if (frameBlocked(g)) { toast(FRAME_MSG); return; }
+    if (frameBlocked(g) && !g.problem && !g.unsupported) {
+      history = [{ id: g.id, at: Date.now() }, ...history.filter((x) => x.id !== g.id)].slice(0, 40);
+      store.set("history", history);
+      playInPopup(g); return;
+    }
     if (g.problem || g.unsupported) { toast(g.problem || "This game can't be played."); return; }
     history = [{ id: g.id, at: Date.now() }, ...history.filter((x) => x.id !== g.id)].slice(0, 40);
     store.set("history", history);
@@ -82,15 +94,16 @@
   }
   function card(g) {
     checkGame(g);
-    const c = consoleOf(g.console), blocked = g.problem || g.unsupported || frameBlocked(g);
+    const c = consoleOf(g.console), blocked = g.problem || g.unsupported;
     const el = h("button", "card"); el.title = blocked ? (g.problem || "Can't be played") : "Play " + g.title;
     const a = art(g, "card-art");
     if (g.image) el.style.setProperty("--cover", `url("${g.image}")`);
     a.appendChild(h("span", "shine"));
     a.style.aspectRatio = String(c.box || 0.72);   // shaped like that console's game box
     a.appendChild(h("div", "play", blocked ? ICON.warn : ICON.play));
-    if (frameBlocked(g)) a.appendChild(h("span", "warn", "Doesn't work in iframe"));
-    else if (g.problem) a.appendChild(h("span", "warn", problemLabel(g.problem)));
+    if (g.problem) a.appendChild(h("span", "warn", problemLabel(g.problem)));
+    else if (frameBlocked(g)) a.appendChild(h("span", "warn popup", "↗ Plays in pop-up"));
+    if (false) a.appendChild(h("span", "warn", problemLabel(g.problem)));
     el.appendChild(a);
     const played = times[g.id] >= 60000 ? fmt(times[g.id]) + " played" : mb(g.size);
     el.appendChild(h("div", "card-info", `<div class="card-title">${esc(g.title)}</div>
@@ -100,14 +113,14 @@
   }
   function row(g) {
     checkGame(g);
-    const c = consoleOf(g.console), blocked = g.problem || g.unsupported || frameBlocked(g);
+    const c = consoleOf(g.console), blocked = g.problem || g.unsupported;
     const el = h("button", "row"); el.title = blocked ? (g.problem || "Can't be played") : "Play " + g.title;
     el.appendChild(art(g, "row-art"));
     const last = lastPlayed(g);
     el.appendChild(h("div", "row-info", `<div class="row-title">${esc(g.title)}</div>
       <div class="row-meta"><span class="pill">${esc(c.tag)}</span><span>${esc(c.name)}</span><span>· ${esc(mb(g.size))}</span>
       ${times[g.id] >= 60000 ? `<span>· ${esc(fmt(times[g.id]))} played</span>` : ""}${last ? `<span>· last played ${esc(ago(last))}</span>` : ""}
-      ${g.local ? `<span class="pill mine">Imported</span>` : ""}${frameBlocked(g) ? `<span class="pill" style="background:#8a2020;border-color:#8a2020">Doesn't work in iframe</span>` : ""}${g.problem ? `<span class="pill" style="background:#8a2020;border-color:#8a2020">${esc(problemLabel(g.problem))}</span>` : ""}</div>`));
+      ${g.local ? `<span class="pill mine">Imported</span>` : ""}${frameBlocked(g) ? `<span class="pill" style="background:#2a3a5a;border-color:#2a3a5a;color:#cfe0ff">↗ Plays in pop-up</span>` : ""}${g.problem ? `<span class="pill" style="background:#8a2020;border-color:#8a2020">${esc(problemLabel(g.problem))}</span>` : ""}</div>`));
     el.appendChild(h("span", "row-play", blocked ? ICON.warn : ICON.play));
     if (g.local) {
       const del = h("span", "row-del", ICON.trash); del.setAttribute("role", "button"); del.title = "Remove from this browser";
@@ -557,10 +570,10 @@
       <button class="fn-x" type="button" aria-label="Close">✕</button>
       <div class="fn-top">
         <div class="fn-icon"><svg viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.3v.2"/></svg></div>
-        <div><h2 id="fn-t">Some games can't run here</h2><p>The site is open inside another page.</p></div>
+        <div><h2 id="fn-t">Some games open in a pop-up</h2><p>The site is open inside another page.</p></div>
       </div>
       <div class="fn-chips">${chip("psp")}${chip("ps2")}</div>
-      <p class="fn-text">These consoles need multi-threading, which browsers turn off inside embedded pages. Their games are locked here; everything else plays normally.</p>
+      <p class="fn-text">These consoles need multi-threading, which browsers turn off inside embedded pages. So their games open in their own pop-up player window (allow pop-ups if your browser asks). Everything else plays right here.</p>
       <div class="fn-foot"><a class="fn-link" href="${esc(location.href)}" target="_blank" rel="noopener">Open in a new tab ↗</a><button class="btn btn-white fn-ok" type="button">Got it</button></div>
     </div>`;
     const closeNote = () => { box.classList.add("out"); setTimeout(() => box.remove(), 220); try { sessionStorage.setItem("fruti:frame-note", "1"); } catch {} };

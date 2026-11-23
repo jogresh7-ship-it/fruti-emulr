@@ -414,5 +414,12 @@
       }
     })();
   </script>
+  <script>
+  // Opened as the pop-up player (from the site inside an iframe): "Library" just closes this window
+  if (/[?&]popup=1/.test(location.search) && window.opener) document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest('a[href="index.html"]');
+    if (a) { e.preventDefault(); window.close(); }
+  });
+  </script>
 </body>
 </html>
