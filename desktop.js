@@ -571,7 +571,6 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "/" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); $("#search").focus(); }
     if (e.key === "Escape" && !$("#imp").hidden) { closeImport(); return; }
-    if (e.key === "Escape" && !$("#req").hidden) { closeReq(); return; }
     if (e.key === "Escape") { $("#search").value = ""; $("#search").blur(); document.body.classList.remove("menu-open"); render(); }
   });
   // Coming back from a game (back button / bfcache): refresh play times
@@ -761,27 +760,6 @@
       catch (e) { if (attempt === 2) throw e; }   // main moved meanwhile: try again on top of it
     }
   }
-
-  // ---------- Request a game (opens a ready-filled GitHub issue) ----------
-  $("#request").onclick = () => {
-    const sel = $("#req-console");
-    if (!sel.options.length) { sel.appendChild(new Option("Choose the console…", "")); CONSOLES.forEach((c) => sel.appendChild(new Option(c.name, c.id))); }
-    $("#req-form").reset(); $("#req-err").hidden = true; $("#req").hidden = false; $("#req-title").focus();
-  };
-  const closeReq = () => { $("#req").hidden = true; };
-  $("#req-close").onclick = $("#req-cancel").onclick = closeReq;
-  $("#req").addEventListener("mousedown", (e) => { if (e.target.id === "req") closeReq(); });
-  $("#req-form").onsubmit = (e) => {
-    e.preventDefault();
-    const t = $("#req-title").value.trim(), c = $("#req-console").value, note = $("#req-note").value.trim();
-    const err = (m) => { $("#req-err").textContent = m; $("#req-err").hidden = false; };
-    if (!t) return err("Type the game's name.");
-    if (!c) return err("Choose the console.");
-    const R = FrutiLibrary.repo, con = consoleOf(c);
-    const body = `**Game:** ${t}\n**Console:** ${con.name}\n` + (note ? `**Notes:** ${note}\n` : "") + "\n_Sent from the Fruti game launcher's Request button._";
-    window.open(`https://github.com/${R.owner}/${R.name}/issues/new?title=${encodeURIComponent("Game request: " + t + " (" + con.tag + ")")}&body=${encodeURIComponent(body)}`, "_blank", "noopener");
-    closeReq(); toast("Opening your request on GitHub. Press Submit there to send it.");
-  };
 
   // ---------- 3D tilt + light shine that follow the mouse over a game box ----------
   if (matchMedia("(hover: hover) and (pointer: fine)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches) {

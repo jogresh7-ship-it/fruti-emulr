@@ -52,6 +52,36 @@
     #tap .big svg { width: 22px; height: 22px; fill: currentColor; }
     #tap small { color: #c3c9d4; font-size: 14px; }
     body.playing.mouse #back { opacity: 1; pointer-events: auto; }
+    /* Controls panel with key and controller pictures (Kenney input prompts, CC0) */
+    #keys { border-radius: 16px !important; box-shadow: 0 20px 50px rgba(0,0,0,.55); animation: keys-in .4s cubic-bezier(.34,1.56,.64,1) both; max-height: calc(100vh - 80px); overflow: auto; }
+    @keyframes keys-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } }
+    #keys td { padding: 4px 0; vertical-align: middle; }
+    #keys td:first-child { color: #c9d0dc; font-size: 13px; padding-right: 10px; }
+    #keys img.key { height: 28px; width: 28px; margin-left: 2px; vertical-align: middle; filter: drop-shadow(0 2px 3px rgba(0,0,0,.4)); transition: transform .3s cubic-bezier(.34,1.7,.5,1); }
+    #keys img.key.wide { width: auto; }
+    #keys tr:hover img.key { transform: translateY(-2px) scale(1.1); }
+    #keys .or { margin: 0 6px; color: #6e7686; }
+    #keys .txt { color: #c9d0dc; font-size: 13px; }
+    #keys h4 { margin: 12px 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #8d95a5; }
+    #keys .padrow { display: flex; flex-wrap: wrap; gap: 6px; }
+    #keys figure { margin: 0; display: grid; justify-items: center; gap: 2px; width: 44px; }
+    #keys figure img { width: 34px; height: 34px; object-fit: contain; transition: transform .35s cubic-bezier(.34,1.7,.5,1); }
+    #keys figure:hover img { transform: scale(1.18) rotate(-6deg); }
+    #keys figcaption { font-size: 10px; color: #8d95a5; }
+
+    /* Touch controls skinned with Kenney Mobile Controls (CC0) */
+    .ejs_virtualGamepad_button { background: url(emulatorjs/fruti-ui/touch/button_circle.png) center / 100% 100% no-repeat !important; border: 0 !important; box-shadow: none !important;
+      color: #e9edf3 !important; text-shadow: 0 1px 2px rgba(0,0,0,.6); font-family: system-ui, sans-serif !important; font-weight: 800 !important;
+      transition: transform .12s ease, filter .15s ease; }
+    .ejs_virtualGamepad_button.fruti-wide { background-image: url(emulatorjs/fruti-ui/touch/button_bean.png) !important; font-size: 13px !important; letter-spacing: .05em; }
+    .ejs_virtualGamepad_button { color: #ffffff !important; opacity: .92; }
+    .ejs_dpad_main { opacity: .95; }
+    .ejs_virtualGamepad_button_down { transform: scale(.88); filter: brightness(1.6) drop-shadow(0 0 10px rgba(255,255,255,.45)); }
+    .ejs_dpad_main { background: url(emulatorjs/fruti-ui/touch/dpad.png) center / contain no-repeat !important; }
+    .ejs_dpad_main * { opacity: 0 !important; }
+    .ejs_dpad_main.fruti-dpad-down { filter: brightness(1.4); }
+    .nipple .back { background: url(emulatorjs/fruti-ui/touch/joystick_circle_pad_a.png) center / contain no-repeat !important; opacity: 1 !important; }
+    .nipple .front { background: url(emulatorjs/fruti-ui/touch/joystick_circle_nub_a.png) center / contain no-repeat !important; opacity: 1 !important; }
   </style>
 </head>
 <body>
@@ -145,14 +175,36 @@
         var rows = CONTROLS[g.console];
         if (!rows || touch) return;
         var panel = document.getElementById("keys"), btn = document.getElementById("keysBtn");
-        panel.innerHTML = "<h3>Controls</h3><table></table><p>A gamepad works too. Keys can be changed in the emulator's own menu (the gamepad icon at the bottom of the game).</p>";
+        var UI = "emulatorjs/fruti-ui/";
+        var ps = /^(psx|psp)$/.test(g.console);
+        var PAD = ps
+          ? [["button_cross", "✕"], ["button_circle", "○"], ["button_square", "□"], ["button_triangle", "△"], ["trigger_l1", "L1"], ["trigger_r1", "R1"], ["button_options", "Start"], ["dpad", "D-pad"], ["stick_l", "Stick"]]
+          : [["button_a", "A"], ["button_b", "B"], ["button_x", "X"], ["button_y", "Y"], ["lb", "LB"], ["rb", "RB"], ["button_menu", "Start"], ["dpad", "D-pad"], ["stick_l", "Stick"]];
+        panel.innerHTML = '<h3>Controls</h3><table></table><h4>Controller</h4><div class="padrow"></div><p>Plug in or pair a controller and press any button. Keys can be changed in the emulator\'s own menu (the gamepad icon at the bottom of the game).</p>';
         var t = panel.querySelector("table");
+        var keyImg = function (k) {
+          var name = { "enter": "enter", "space": "space", "shift": "shift", "tab": "tab", "backspace": "backspace", "arrow keys": "arrows" }[k.toLowerCase()] || (/^[a-z0-9]$/i.test(k) ? k.toLowerCase() : "");
+          if (!name) return null;
+          var im = document.createElement("img"); im.className = "key" + (name.length > 1 ? " wide" : ""); im.src = UI + "keys/keyboard_" + name + ".png"; im.alt = k; im.title = k;
+          return im;
+        };
         rows.forEach(function (r) {
           var tr = document.createElement("tr"), a = document.createElement("td"), b = document.createElement("td");
           a.textContent = r[0];
-          if (/ /.test(r[1]) && !/ \/ |Arrow|^[A-Z]( [A-Z]){3}$/.test(r[1])) b.textContent = r[1];
-          else r[1].split(" / ").forEach(function (k, i) { if (i) b.appendChild(document.createTextNode(" / ")); var kb = document.createElement("kbd"); kb.textContent = k; b.appendChild(kb); });
+          r[1].split(" / ").forEach(function (group, gi) {
+            if (gi) { var sl = document.createElement("span"); sl.className = "or"; sl.textContent = "/"; b.appendChild(sl); }
+            var bits = /^Arrow keys$/i.test(group) ? [group] : group.split(" ");
+            var imgs = bits.map(keyImg);
+            if (imgs.every(Boolean)) imgs.forEach(function (im) { b.appendChild(im); });
+            else { var sp = document.createElement("span"); sp.className = "txt"; sp.textContent = group; b.appendChild(sp); }
+          });
           tr.appendChild(a); tr.appendChild(b); t.appendChild(tr);
+        });
+        var pr = panel.querySelector(".padrow");
+        PAD.forEach(function (x) {
+          var f = document.createElement("figure"), im = document.createElement("img"), c = document.createElement("figcaption");
+          im.src = UI + "pad/" + (ps ? "playstation_" : "xbox_") + x[0] + ".png"; im.alt = x[1]; c.textContent = x[1];
+          f.appendChild(im); f.appendChild(c); pr.appendChild(f);
         });
         btn.hidden = false;
         btn.onclick = function () { panel.hidden = !panel.hidden; };
@@ -420,6 +472,20 @@
     var a = e.target.closest && e.target.closest('a[href="index.html"]');
     if (a) { e.preventDefault(); window.close(); }
   });
+  </script>
+  <script>
+  // Touch buttons with words (START, SELECT, …) get the wide sprite; the D-pad lights up while held
+  new MutationObserver(function () {
+    document.querySelectorAll(".ejs_virtualGamepad_button:not(.fruti-done)").forEach(function (b) {
+      b.classList.add("fruti-done");
+      if ((b.textContent || "").trim().length > 2) b.classList.add("fruti-wide");
+    });
+    document.querySelectorAll(".ejs_dpad_main:not(.fruti-done)").forEach(function (d) {
+      d.classList.add("fruti-done");
+      d.addEventListener("touchstart", function () { d.classList.add("fruti-dpad-down"); }, { passive: true });
+      ["touchend", "touchcancel"].forEach(function (t) { d.addEventListener(t, function () { d.classList.remove("fruti-dpad-down"); }, { passive: true }); });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
   </script>
 </body>
 </html>

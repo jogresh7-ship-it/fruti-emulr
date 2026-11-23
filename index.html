@@ -47,9 +47,6 @@
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
           <input id="search" type="search" placeholder="Search games" autocomplete="off">
         </label>
-        <button class="hd-btn hd-import" id="request" title="Ask for a game to be added">
-          <svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M12 8v4M12 14.5v.5"/></svg><span>Request</span>
-        </button>
         <button class="hd-btn hd-import" id="import" title="Import a game into this browser">
           <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg><span>Import</span>
         </button>
@@ -106,24 +103,11 @@
     </form>
   </div>
 
-  <!-- Request a game: opens a ready-filled GitHub issue (no files) -->
-  <div class="modal" id="req" hidden>
-    <form class="dialog" id="req-form" autocomplete="off">
-      <div class="dlg-head"><h2>Request a game</h2><button type="button" class="hd-btn" id="req-close" aria-label="Close">✕</button></div>
-      <p class="dlg-note">Ask for a game to be added. This opens a request on GitHub (you need a free GitHub account to send it). No game files are sent.</p>
-      <label class="fld"><span>Game name</span><input type="text" id="req-title" required placeholder="e.g. Tekken 3"></label>
-      <label class="fld"><span>Console</span><select id="req-console" required></select></label>
-      <label class="fld"><span>Anything else (optional)</span><input type="text" id="req-note" placeholder="Region, version, …"></label>
-      <p class="dlg-err" id="req-err" hidden></p>
-      <div class="dlg-foot"><span class="grow"></span><button type="button" class="btn btn-ghost" id="req-cancel">Cancel</button><button type="submit" class="btn btn-white">Send request</button></div>
-    </form>
-  </div>
-
   <div class="toast" id="toast" hidden></div>
 
   <script src="consoles.js?v=16"></script>
   <script>document.write('<script src="games.js?t=' + Math.floor(Date.now() / 60000) + '"><\/script>');</script>
   <script src="library.js?v=24"></script>
-  <script src="desktop.js?v=42"></script>
+  <script src="desktop.js?v=43"></script>
 </body>
 </html>

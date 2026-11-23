@@ -20,7 +20,6 @@ add one is the launcher's **Import → Upload to GitHub** (owner only), which ch
 - **Home:** a big banner with the game you played last (or a featured one) and a **Play** button, then cards for *Recently played*, *All games* or *With box art*.
 - **Catalogue:** every game as a list, with console filters on the right (tick one or more consoles).
 - **Import** (top right): anyone can add a game of their own: choose the game file, the console it's for, a title, and a cover (a PNG / JPG file or a link to a picture). It's saved only in that browser, on that device (nothing is uploaded, other visitors don't see it), marked *Imported*, and can be removed with the bin icon in the Catalogue. Big games may not fit in the browser's storage.
-- **Request** (top right): visitors type a game's name and console; it opens a ready-filled request in the repo's GitHub Issues (no files are sent).
 - **Upload to GitHub (owner only):** in Import, click *Owner: upload to GitHub* and paste a fine-grained GitHub token with *Contents: Read and write* for this repo (kept only in that browser). Then *Save to → Upload to GitHub* checks the file is complete, cuts it into 25 MB parts and uploads them with the cover to `rom/<console>/<game>/` in one commit.
 - **Search** (top, or press `/`) looks through every console. **↻** checks GitHub for newly uploaded games.
 - While a game downloads and unpacks, the page shows how much time is left.
