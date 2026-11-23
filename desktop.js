@@ -858,17 +858,100 @@
     requestAnimationFrame(poll);
   })();
 
-  // ---------- Settings: highlight colour + solid / liquid-glass look ----------
+  // ---------- Background effects on a canvas: fireflies, particles (linking dots), rain ----------
+  const FX = (() => {
+    const cv = $("#fx"), ctx = cv.getContext("2d"), reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let mode = "none", rgb = [255, 255, 255], items = [], raf = 0, W = 0, H = 0, dpr = 1, last = 0;
+    const mouse = { x: -9999, y: -9999 };
+    addEventListener("pointermove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; }, { passive: true });
+    addEventListener("pointerleave", () => { mouse.x = mouse.y = -9999; });
+    document.addEventListener("mouseleave", () => { mouse.x = mouse.y = -9999; });
+    const col = (a) => `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
+    function size() {
+      dpr = Math.min(2, devicePixelRatio || 1); W = innerWidth; H = innerHeight;
+      cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function seed() {
+      const area = W * H, rnd = Math.random;
+      if (mode === "fireflies") items = Array.from({ length: Math.round(Math.min(70, area / 22000)) }, () => ({
+        x: rnd() * W, y: rnd() * H, r: 1.2 + rnd() * 2.2, a: rnd() * Math.PI * 2, s: .15 + rnd() * .35, p: rnd() * Math.PI * 2, ps: .01 + rnd() * .02 }));
+      else if (mode === "particles") items = Array.from({ length: Math.round(Math.min(110, area / 13000)) }, () => ({
+        x: rnd() * W, y: rnd() * H, vx: (rnd() - .5) * .5, vy: (rnd() - .5) * .5, r: 1.2 + rnd() * 1.6 }));
+      else if (mode === "rain") items = Array.from({ length: Math.round(Math.min(220, area / 6000)) }, () => ({
+        x: rnd() * W * 1.2, y: rnd() * H, l: 10 + rnd() * 22, v: 7 + rnd() * 9, a: .15 + rnd() * .35 }));
+      else items = [];
+    }
+    function frame(t) {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min(3, last ? (t - last) / 16.7 : 1); last = t;
+      ctx.clearRect(0, 0, W, H);
+      if (mode === "fireflies") {
+        ctx.globalCompositeOperation = "lighter";
+        for (const f of items) {
+          f.a += (Math.random() - .5) * .08 * dt; f.x += Math.cos(f.a) * f.s * dt; f.y += Math.sin(f.a) * f.s * dt; f.p += f.ps * dt;
+          const dx = f.x - mouse.x, dy = f.y - mouse.y, d2 = dx * dx + dy * dy;
+          if (d2 < 14400) { const d = Math.sqrt(d2) || 1; f.x += dx / d * 1.6 * dt; f.y += dy / d * 1.6 * dt; }   // drift away from the pointer
+          if (f.x < -20) f.x = W + 20; if (f.x > W + 20) f.x = -20; if (f.y < -20) f.y = H + 20; if (f.y > H + 20) f.y = -20;
+          const glow = .35 + .65 * (Math.sin(f.p) * .5 + .5), R = f.r * 7;
+          const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, R);
+          g.addColorStop(0, col(.9 * glow)); g.addColorStop(.25, col(.35 * glow)); g.addColorStop(1, col(0));
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(f.x, f.y, R, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalCompositeOperation = "source-over";
+      } else if (mode === "particles") {
+        const LINK = 130, AVOID = 120;
+        for (const p of items) {
+          const dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx * dx + dy * dy;
+          if (d2 < AVOID * AVOID) { const d = Math.sqrt(d2) || 1, push = (AVOID - d) / AVOID * .9; p.vx += dx / d * push; p.vy += dy / d * push; }   // dodge the cursor
+          p.vx *= .97; p.vy *= .97;
+          const sp = Math.hypot(p.vx, p.vy); if (sp < .18) { p.vx += (Math.random() - .5) * .06; p.vy += (Math.random() - .5) * .06; }
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          if (p.x < 0 || p.x > W) { p.vx *= -1; p.x = Math.max(0, Math.min(W, p.x)); }
+          if (p.y < 0 || p.y > H) { p.vy *= -1; p.y = Math.max(0, Math.min(H, p.y)); }
+        }
+        ctx.lineWidth = 1;
+        for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+          const a = items[i], b = items[j], dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+          if (d2 < LINK * LINK) { ctx.strokeStyle = col(.32 * (1 - Math.sqrt(d2) / LINK)); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+        }
+        ctx.fillStyle = col(.75);
+        for (const p of items) { ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
+      } else if (mode === "rain") {
+        ctx.lineCap = "round";
+        for (const d of items) {
+          d.y += d.v * dt; d.x -= d.v * .18 * dt;
+          if (d.y > H + d.l) { d.y = -d.l - Math.random() * 60; d.x = Math.random() * W * 1.2; }
+          ctx.strokeStyle = col(d.a); ctx.lineWidth = d.l > 22 ? 1.4 : 1;
+          ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + d.l * .18, d.y - d.l); ctx.stroke();
+        }
+      }
+    }
+    function start() { cancelAnimationFrame(raf); last = 0; if (mode !== "none" && !document.hidden) raf = requestAnimationFrame(frame); }
+    addEventListener("resize", () => { if (mode === "none") return; size(); seed(); });
+    document.addEventListener("visibilitychange", start);   // pause while the tab is hidden
+    return {
+      set(m, c) {
+        rgb = c; const changed = m !== mode; mode = reduce ? "none" : m;
+        document.body.classList.toggle("fx", mode !== "none");
+        if (mode === "none") { cancelAnimationFrame(raf); ctx.clearRect(0, 0, W, H); return; }
+        if (changed || !items.length) { size(); seed(); }
+        start();
+      }
+    };
+  })();
+
+  // ---------- Settings: highlight colour + background effect ----------
   const ACCENTS = [["White", "#ffffff"], ["Blue", "#4da3ff"], ["Cyan", "#22d3ee"], ["Purple", "#a78bfa"], ["Pink", "#f472b6"],
     ["Red", "#f87171"], ["Orange", "#fb923c"], ["Yellow", "#facc15"], ["Green", "#4ade80"]];
-  const theme = Object.assign({ accent: "#ffffff", look: "solid" }, store.get("theme", {}));
+  const theme = Object.assign({ accent: "#ffffff", fx: "none" }, store.get("theme", {}));
+  delete theme.look;
   function applyTheme() {
     const root = document.documentElement, hex = theme.accent;
     const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
     root.style.setProperty("--accent", hex);
     root.style.setProperty("--accent-rgb", `${r},${g},${b}`);
     root.style.setProperty("--on-accent", (r * 299 + g * 587 + b * 114) / 1000 > 150 ? "#151515" : "#ffffff");
-    document.body.classList.toggle("glass", theme.look === "glass");
+    FX.set(theme.fx, [r, g, b]);
     document.body.classList.toggle("accented", hex !== "#ffffff");
     requestAnimationFrame(moveInd);
   }
@@ -881,15 +964,15 @@
       b.onclick = () => { theme.accent = hex; store.set("theme", theme); applyTheme(); sw.querySelectorAll(".swatch").forEach((x) => x.classList.toggle("on", x === b)); };
       sw.appendChild(b);
     });
-    document.querySelectorAll('input[name="look"]').forEach((r) => { r.checked = r.value === theme.look; });
+    document.querySelectorAll('input[name="fx"]').forEach((r) => { r.checked = r.value === theme.fx; });
     $("#set").hidden = false;
   }
   const closeSettings = () => { $("#set").hidden = true; };
-  document.querySelectorAll('input[name="look"]').forEach((r) => r.onchange = () => { theme.look = r.value; store.set("theme", theme); applyTheme(); });
+  document.querySelectorAll('input[name="fx"]').forEach((r) => r.onchange = () => { theme.fx = r.value; store.set("theme", theme); applyTheme(); });
   $("#settings").onclick = openSettings;
   $("#set-close").onclick = $("#set-done").onclick = closeSettings;
   $("#set").addEventListener("mousedown", (e) => { if (e.target.id === "set") closeSettings(); });
-  $("#set-reset").onclick = () => { theme.accent = "#ffffff"; theme.look = "solid"; store.set("theme", theme); applyTheme(); openSettings(); };
+  $("#set-reset").onclick = () => { theme.accent = "#ffffff"; theme.fx = "none"; store.set("theme", theme); applyTheme(); openSettings(); };
   addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#set").hidden) closeSettings(); });
   applyTheme();
 

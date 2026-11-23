@@ -568,33 +568,13 @@ body.accented .con-head .n, body.accented .pill.mine { background: rgba(var(--ac
 .swatch:hover { transform: scale(1.12); }
 .swatch.on { box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--c); transform: scale(1.08); }
 
-/* ================= Liquid glass look ================= */
-body.glass { background: #0c0d12; }
-body.glass .app { position: relative; isolation: isolate;
-  background:
-    radial-gradient(40vw 40vw at 12% 18%, rgba(var(--accent-rgb), .22), transparent 60%),
-    radial-gradient(45vw 45vw at 88% 12%, rgba(120, 90, 255, .22), transparent 60%),
-    radial-gradient(50vw 50vw at 70% 95%, rgba(0, 200, 255, .16), transparent 60%),
-    radial-gradient(40vw 40vw at 20% 90%, rgba(255, 80, 160, .14), transparent 60%), #0c0d12;
-  background-attachment: fixed; }
-body.glass .sidebar, body.glass .header, body.glass .statusbar, body.glass .filters, body.glass .row, body.glass .card-info,
-body.glass .dialog, body.glass .toast, body.glass .hd-tabs, body.glass .hd-btn, body.glass .hd-search, body.glass .fn-card {
-  background: linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.03)) !important;
-  backdrop-filter: blur(22px) saturate(1.6); -webkit-backdrop-filter: blur(22px) saturate(1.6);
-  border-color: rgba(255,255,255,.14) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.25); }
-body.glass .content, body.glass .page { background: transparent !important; }
-body.glass .sidebar { border-right: 1px solid rgba(255,255,255,.1); }
-body.glass .header { border-bottom: 1px solid rgba(255,255,255,.1); }
-body.glass .row, body.glass .filters, body.glass .dialog, body.glass .hd-tabs { border-radius: 16px; }
-body.glass .cards.boxes .card-info { background: none !important; backdrop-filter: none; box-shadow: none; }
-/* liquid shine that drifts across glass panels */
-body.glass .sidebar::after, body.glass .header::after, body.glass .filters::after, body.glass .dialog::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
-  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.07) 45%, transparent 60%) 0 0 / 300% 100%;
-  animation: glass-shine 9s ease-in-out infinite; }
-body.glass .sidebar, body.glass .header, body.glass .filters, body.glass .dialog { position: relative; }
-@keyframes glass-shine { 0%, 100% { background-position: 120% 0; } 50% { background-position: -20% 0; } }
-body.glass .sb-link.on, body.glass .sb-game:hover, body.glass .flt:hover { background: rgba(255,255,255,.08); }
-body.glass .modal { background: rgba(5,6,10,.35); backdrop-filter: blur(4px); }
-@media (prefers-reduced-motion: reduce) { body.glass .sidebar::after, body.glass .header::after, body.glass .filters::after, body.glass .dialog::after { animation: none; } }
+/* ================= Background effects (fireflies / particles / rain) ================= */
+#fx { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .8s ease; }
+body.fx #fx { opacity: 1; }
+body.fx .app { position: relative; z-index: 1; }
+body.fx .content, body.fx .page { background: transparent !important; }
+body.fx .app { background: transparent; }
+body.fx { background: var(--bg); }
+.fx-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.fx-grid label { text-align: center; }
+@media (max-width: 520px) { .fx-grid { grid-template-columns: 1fr 1fr; } }
