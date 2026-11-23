@@ -411,3 +411,53 @@ body.scrolled .header { background: rgba(21,21,21,.78); backdrop-filter: saturat
 .imp-bulk ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; max-height: 220px; overflow: auto; }
 .imp-bulk li { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); }
 .imp-bulk li em { margin-left: auto; color: var(--muted); font-style: normal; font-size: 12px; white-space: nowrap; }
+
+/* ================= Console filter panel (Catalogue): remixed effects ================= */
+.filters { padding: 14px 10px; border-radius: 14px; background: linear-gradient(180deg, var(--card-hi), var(--card) 120px); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.filters h3 { padding: 0 6px; }
+.filters .list { display: grid; gap: 2px; }
+.flt { position: relative; isolation: isolate; padding: 7px 10px 7px 8px; border-radius: 10px; overflow: hidden;
+  transition: color .25s, transform .35s var(--spring), padding .35s var(--ease); }
+/* soft background that grows in from the left */
+.flt::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255,255,255,.10), rgba(255,255,255,.03));
+  transform: scaleX(0); transform-origin: left; transition: transform .4s var(--ease); }
+.flt:hover::before, .flt:focus-visible::before { transform: scaleX(1); }
+/* light sweep across on hover */
+.flt::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 40%; z-index: -1; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.12), transparent); transform: skewX(-20deg); opacity: 0; }
+.flt:hover::after { animation: flt-sweep .7s var(--ease) both; }
+@keyframes flt-sweep { from { left: -40%; opacity: 1; } to { left: 120%; opacity: 0; } }
+.flt:hover { transform: none; padding-left: 12px; background: none; color: var(--strong); }
+.flt:active { transform: scale(.97); }
+/* console picture lifts and tilts */
+.flt .ic { transition: transform .45s var(--spring), filter .3s; filter: grayscale(.35) brightness(.9); }
+.flt:hover .ic, .flt.on .ic { transform: scale(1.18) rotate(-6deg) translateY(-1px); filter: none drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+/* checkbox pops when ticked */
+.flt .box { transition: background .25s, border-color .25s, transform .4s var(--spring), box-shadow .3s; }
+.flt:hover .box { border-color: #9a9a9a; }
+.flt.on .box { transform: scale(1.12); box-shadow: 0 0 0 4px rgba(255,255,255,.12); animation: flt-pop .45s var(--spring); }
+@keyframes flt-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1.12); } }
+/* game count becomes a pill */
+.flt .n { min-width: 24px; text-align: center; padding: 1px 7px; border-radius: 999px; transition: background .3s, color .3s, transform .35s var(--spring); }
+.flt:hover .n { background: rgba(255,255,255,.1); color: var(--strong); transform: scale(1.08); }
+.flt.on .n { background: #fff; color: #151515; font-weight: 700; }
+/* chosen consoles: white accent bar + lit background */
+.flt.on { color: var(--strong); }
+.flt.on::before { transform: scaleX(1); background: linear-gradient(90deg, rgba(255,255,255,.16), rgba(255,255,255,.04)); }
+.flt .nm { transition: letter-spacing .35s var(--ease); }
+.flt:hover .nm { letter-spacing: .01em; }
+.flt.on .nm { font-weight: 600; }
+.flt.on { box-shadow: inset 3px 0 0 #fff; }
+/* consoles without games stay quiet */
+.flt.empty:hover { padding-left: 8px; color: inherit; }
+.flt.empty:hover .ic { transform: none; filter: grayscale(.35) brightness(.9); }
+.flt.empty::after { display: none; }
+/* "Clear filters" */
+.filters .clear { margin: 10px 6px 0; transition: color .2s, transform .3s var(--spring); }
+.filters .clear:hover { transform: translateX(3px); }
+@media (max-width: 1000px) {
+  .filters .flt { border-radius: 999px; padding: 5px 12px; }
+  .filters .flt:hover { padding-left: 12px; }
+  .flt.on { box-shadow: inset 0 0 0 1px #fff; }
+}
