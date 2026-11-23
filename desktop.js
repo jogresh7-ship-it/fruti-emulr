@@ -612,7 +612,12 @@
   const u64 = (b, i) => u32(b, i) + u32(b, i + 4) * 4294967296;
   const bytesOf = (f, a, z) => f.slice(a, z).arrayBuffer().then((x) => new Uint8Array(x));
   async function incompleteMsg(f) {
-    const b = await bytesOf(f, 0, 64), cut = (need) => `This file is incomplete: only ${mb(f.size)} of ${mb(need)}. The download stopped early; download it again.`;
+    const b = await bytesOf(f, 0, 64);
+    const start = new TextDecoder().decode(b.subarray(0, 64)).trim().toLowerCase();
+    if (/^(<!doctype html|<html|<head|<\?xml|\{"|<!--)/.test(start))
+      return "This isn't a game file: it's a web page that the download site saved under the game's name (the real download didn't happen). Go back to the site, start the download again and make sure the real file downloads.";
+    if (f.size < 2048) return `This file is only ${f.size} bytes, far too small to be a game. The download probably failed; download it again.`;
+    const cut = (need) => `This file is incomplete: only ${mb(f.size)} of ${mb(need)}. The download stopped early; download it again.`;
     if (b[0] === 0x37 && b[1] === 0x7a && b[2] === 0xbc && b[3] === 0xaf) { const need = 32 + u64(b, 12) + u64(b, 20); return f.size < need ? cut(need) : ""; }
     if (b[0] === 0x50 && b[1] === 0x4b) {
       const t = await bytesOf(f, Math.max(0, f.size - 65600), f.size);
