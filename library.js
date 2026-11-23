@@ -78,7 +78,7 @@
   // On GitHub Pages files come from the site itself; anywhere else (or from disk) from GitHub directly.
   // Games can live in a separate games repo (read first) as well as in the site's own repo.
   var GAMES = { owner: R.owner, name: "rom-games-fruti" };
-  var SOURCES = [GAMES, { owner: R.owner, name: R.name, site: true }];
+  var SOURCES = [GAMES];   // all games live in rom-games-fruti now
   var pathSrc = {};   // "rom/DS/Game/file.zip" -> the source it came from
   var raw = function (s, path) { return "https://raw.githubusercontent.com/" + s.owner + "/" + s.name + "/" + BRANCH + "/" + enc(path); };
   function url(path) {
