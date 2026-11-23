@@ -461,3 +461,76 @@ body.scrolled .header { background: rgba(21,21,21,.78); backdrop-filter: saturat
   .filters .flt:hover { padding-left: 12px; }
   .flt.on { box-shadow: inset 0 0 0 1px #fff; }
 }
+
+/* ================= Butter-smooth, soft and cute: every control ================= */
+:root { --soft: cubic-bezier(.25,.8,.25,1); --bounce: cubic-bezier(.34,1.7,.5,1); }
+html { scroll-behavior: smooth; }
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Ripple */
+.has-ripple { overflow: hidden; isolation: isolate; }
+.ripple { position: absolute; border-radius: 50%; pointer-events: none; z-index: 5; background: radial-gradient(circle, rgba(255,255,255,.35) 0, rgba(255,255,255,.12) 45%, transparent 70%);
+  transform: scale(0); opacity: 1; animation: ripple .65s var(--soft) forwards; }
+.btn-white .ripple, .hd-tabs .tab.on .ripple { background: radial-gradient(circle, rgba(0,0,0,.18) 0, rgba(0,0,0,.06) 45%, transparent 70%); }
+@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+
+/* Every button: gentle lift on hover, soft squish on press */
+button, .btn, .hd-btn, .linkbtn, .con-dl, .fn-link { transition: transform .35s var(--bounce), background .3s var(--soft), color .3s var(--soft), border-color .3s var(--soft), box-shadow .35s var(--soft), opacity .3s; }
+.btn:hover, .hd-btn:hover, .con-dl:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.3); }
+.btn-white:hover { box-shadow: 0 8px 24px rgba(255,255,255,.18); }
+.btn:active, .hd-btn:active, .con-dl:active, .tab:active, .sb-link:active, .linkbtn:active { transform: scale(.94) !important; transition-duration: .12s; }
+.btn:disabled { transform: none !important; box-shadow: none !important; }
+
+/* Icons inside buttons do a tiny happy bounce */
+.hd-btn svg, .sb-link svg, .btn svg, .con-dl svg { transition: transform .45s var(--bounce); }
+.hd-btn:hover svg, .sb-link:hover svg, .con-dl:hover svg { transform: scale(1.15) rotate(-6deg); }
+#import:hover svg, .con-dl:hover svg, .row-dl:hover svg { transform: translateY(2px) scale(1.12); }
+#request:hover svg { transform: rotate(-10deg) scale(1.15); }
+.sb-link.on svg { transform: scale(1.1); }
+
+/* Sidebar links */
+.sb-link { transition: background .3s var(--soft), color .3s var(--soft), transform .35s var(--bounce), padding-left .35s var(--soft); }
+.sb-link:hover { padding-left: 16px; }
+
+/* Inputs: soft glow when focused */
+input[type=text], input[type=url], input[type=search], input[type=password], select { transition: border-color .3s var(--soft), box-shadow .35s var(--soft), background .3s; }
+input:focus, select:focus { box-shadow: 0 0 0 4px rgba(255,255,255,.07); }
+input[type=file]::file-selector-button { border: 0; border-radius: 999px; padding: 6px 14px; margin-right: 10px; background: var(--card-hi); color: var(--strong); font-weight: 600; cursor: pointer; transition: background .25s, transform .3s var(--bounce); }
+input[type=file]::file-selector-button:hover { background: #3a3a3a; transform: translateY(-1px); }
+
+/* Choice cards (Save to) */
+.seg label { transition: border-color .3s var(--soft), background .3s var(--soft), transform .35s var(--bounce), box-shadow .3s; }
+.seg label:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.3); }
+.seg label:has(input:checked) { animation: seg-pick .45s var(--bounce); }
+@keyframes seg-pick { 40% { transform: scale(1.03); } }
+
+/* Pills, chips and badges breathe a little on hover */
+.pill, .con-head .n, .fn-chip { transition: transform .35s var(--bounce), background .3s; }
+.row:hover .pill, .con-head:hover .n, .fn-chip:hover { transform: scale(1.08); }
+
+/* Softer toast: floats up with a small bounce */
+.toast { border-radius: 14px; box-shadow: 0 14px 40px rgba(0,0,0,.45); }
+.toast:not([hidden]) { animation: toast-in .5s var(--bounce) both; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 16px) scale(.94); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+
+/* Dialogs: soft pop */
+.dialog { border-radius: 18px; }
+.modal:not([hidden]) .dialog { animation: dlg-in .5s var(--bounce) both; }
+@keyframes dlg-in { from { opacity: 0; transform: translateY(18px) scale(.95); } to { opacity: 1; transform: none; } }
+
+/* Smooth page switches (View Transitions) */
+::view-transition-old(root) { animation: vt-out .22s var(--soft) both; }
+::view-transition-new(root) { animation: vt-in .38s var(--soft) both; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(10px); } }
+.sidebar, .header, .statusbar { view-transition-name: none; }
+
+/* Soft, thin scrollbars */
+* { scrollbar-width: thin; scrollbar-color: #3a3a3a transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #353535; border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; transition: background .3s; }
+::-webkit-scrollbar-thumb:hover { background-color: #4a4a4a; }
+
+/* Text selection and focus in the same soft style */
+::selection { background: rgba(255,255,255,.22); }
+:focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: 3px; border-radius: 8px; }

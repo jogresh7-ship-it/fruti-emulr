@@ -253,7 +253,17 @@
     box.appendChild(wrap);
   }
 
+  let lastView = "";
   function render() {
+    const view = (query() ? "search" : ui.page) + "|" + ui.tab + "|" + ui.filters.join(",");
+    const changed = lastView && view !== lastView && state === "ok"; lastView = view;
+    if (changed && document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches && !query()) {
+      document.startViewTransition(() => renderNow());
+      return;
+    }
+    renderNow();
+  }
+  function renderNow() {
     renderSidebar();
     const q = query();
     const box = $("#content"); box.innerHTML = "";
@@ -869,6 +879,20 @@
     addEventListener("gamepadconnected", () => { document.body.classList.add("pad"); });
     requestAnimationFrame(poll);
   })();
+
+  // ---------- Soft ripple wherever a button is clicked ----------
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.addEventListener("pointerdown", (e) => {
+      const el = e.target.closest && e.target.closest("button, .btn, .sb-link, .sb-game, .row, .flt, .tab, .hd-btn, .con-dl, .con-head, a.fn-link, .seg label");
+      if (!el || el.closest(".card")) return;   // game boxes have their own press effect
+      const r = el.getBoundingClientRect(), size = Math.max(r.width, r.height) * 2.2;
+      const dot = document.createElement("span"); dot.className = "ripple";
+      dot.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`;
+      if (getComputedStyle(el).position === "static") el.style.position = "relative";
+      el.classList.add("has-ripple"); el.appendChild(dot);
+      dot.addEventListener("animationend", () => dot.remove());
+    }, { passive: true });
+  }
 
   load(false);
 })();
