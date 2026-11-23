@@ -552,15 +552,20 @@
   if (IN_FRAME) {
     let seen = false; try { seen = sessionStorage.getItem("fruti:frame-note") === "1"; } catch {}
     const box = h("div", "frame-note");
+    const chip = (id) => { const c = consoleOf(id); return `<span class="fn-chip">${c.icon ? `<img src="${esc(abs(c.icon))}" alt="">` : ""}${esc(c.name)}</span>`; };
     box.innerHTML = `<div class="fn-card" role="dialog" aria-modal="true" aria-labelledby="fn-t">
-      <div class="fn-icon"><svg viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.3v.2"/></svg></div>
-      <h2 id="fn-t">Some games don't work here</h2>
-      <p>This site is open inside another page (an iframe). Browsers don't allow the multi-threading these consoles need there:</p>
-      <ul><li><b>PSP</b> (PlayStation Portable) games</li><li><b>PS2</b> (PlayStation 2) games</li></ul>
-      <p>They're marked <span class="fn-tag">Doesn't work in iframe</span> and can't be opened here. Every other console works. To play PSP or PS2 games, open the site in its own tab.</p>
-      <div class="fn-foot"><a class="btn btn-ghost" href="${esc(location.href)}" target="_blank" rel="noopener">Open in a new tab</a><button class="btn btn-white" type="button">Got it</button></div>
+      <button class="fn-x" type="button" aria-label="Close">✕</button>
+      <div class="fn-top">
+        <div class="fn-icon"><svg viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.3v.2"/></svg></div>
+        <div><h2 id="fn-t">Some games can't run here</h2><p>The site is open inside another page.</p></div>
+      </div>
+      <div class="fn-chips">${chip("psp")}${chip("ps2")}</div>
+      <p class="fn-text">These consoles need multi-threading, which browsers turn off inside embedded pages. Their games are locked here; everything else plays normally.</p>
+      <div class="fn-foot"><a class="fn-link" href="${esc(location.href)}" target="_blank" rel="noopener">Open in a new tab ↗</a><button class="btn btn-white fn-ok" type="button">Got it</button></div>
     </div>`;
-    box.querySelector("button").onclick = () => { box.classList.add("out"); setTimeout(() => box.remove(), 250); try { sessionStorage.setItem("fruti:frame-note", "1"); } catch {} };
+    const closeNote = () => { box.classList.add("out"); setTimeout(() => box.remove(), 220); try { sessionStorage.setItem("fruti:frame-note", "1"); } catch {} };
+    box.querySelector(".fn-ok").onclick = box.querySelector(".fn-x").onclick = closeNote;
+    box.addEventListener("mousedown", (e) => { if (e.target === box) closeNote(); });
     if (!seen) document.body.appendChild(box);
   }
 
