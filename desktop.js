@@ -391,14 +391,14 @@
     const dest = (document.querySelector('input[name="dest"]:checked') || {}).value;
     $("#imp-save").textContent = on && dest === "github" ? "Upload" : "Import";
     $(".dlg-note").textContent = on && dest === "github"
-      ? "Checked, cut into 25 MB parts and uploaded to your GitHub repo (rom/<console>/<game>/). Everyone will see it."
+      ? "Checked, cut into 25 MB parts and uploaded to your games repo rom-games-fruti (rom/<console>/<game>/). Everyone will see it."
       : "Saved only in this browser, on this device. Nothing is uploaded and nobody else sees it.";
   }
   document.querySelectorAll('input[name="dest"]').forEach((r) => r.onchange = ownerUi);
   $("#owner-toggle").onclick = () => { $("#owner").hidden = !$("#owner").hidden; $("#owner-msg").textContent = ""; };
   $("#owner-off").onclick = () => { try { localStorage.removeItem("fruti:gh-token"); } catch {} $("#owner-msg").textContent = "Disconnected."; ownerUi(); };
   $("#owner-save").onclick = () => {
-    const t = $("#owner-token").value.trim(), R = FrutiLibrary.repo;
+    const t = $("#owner-token").value.trim(), R = FrutiLibrary.gamesRepo;
     if (!t) { $("#owner-msg").textContent = "Paste the token first."; return; }
     $("#owner-msg").textContent = "Checking…";
     fetch(`https://api.github.com/repos/${R.owner}/${R.name}`, { headers: { Authorization: "Bearer " + t, Accept: "application/vnd.github+json" } })
@@ -445,10 +445,10 @@
   const archiveKind = (f) => bytesOf(f, 0, 4).then((b) => b[0] === 0x37 && b[1] === 0x7a ? "7z" : b[0] === 0x50 && b[1] === 0x4b ? "zip" : "");
   async function ghUpload({ rom, con, title, cover, coverUrl }) {
     converting = "";
-    const R = FrutiLibrary.repo, api = `https://api.github.com/repos/${R.owner}/${R.name}`;
+    const R = FrutiLibrary.gamesRepo, api = `https://api.github.com/repos/${R.owner}/${R.name}`;
     const H = { Authorization: "Bearer " + ownerToken(), Accept: "application/vnd.github+json", "Content-Type": "application/json" };
     const call = (path, opts) => fetch(api + path, Object.assign({ headers: H }, opts)).then((r) => r.json().then((j) => { if (!r.ok) throw new Error(/not accessible by (personal access|integration)/i.test(j.message || "")
-      ? "Your GitHub token can only read. On GitHub, edit the token: Repository permissions → Contents → Read and write (and make sure fruti-emulr is selected). Then try again."
+      ? "Your GitHub token can't write to rom-games-fruti. On GitHub, edit the token: add the rom-games-fruti repository, and set Repository permissions → Contents → Read and write. Then try again."
       : `GitHub: ${j.message || r.status}`); return j; }));
     const prog = $("#imp-prog"), bar = prog.querySelector("i"), note = prog.querySelector("small");
     const say = (t, p) => { prog.hidden = false; note.textContent = t; if (p != null) bar.style.width = Math.round(p * 100) + "%"; };
@@ -492,6 +492,7 @@
     for (let attempt = 0; attempt < 3; attempt++) {
       const ref = await call("/git/ref/heads/main"), base = await call("/git/commits/" + ref.object.sha);
       let entries = tree;
+      if (linkOnly) linkOnly = await call("/contents/games.js?ref=" + ref.object.sha).then(() => linkOnly, () => "");   // games repo has no games.js
       if (linkOnly) {
         const cur = await call("/contents/games.js?ref=" + ref.object.sha);
         let text = new TextDecoder().decode(Uint8Array.from(atob(cur.content.replace(/\s/g, "")), (ch) => ch.charCodeAt(0)));

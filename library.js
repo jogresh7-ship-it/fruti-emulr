@@ -76,8 +76,15 @@
   var R = repo();
   var enc = function (path) { return path.split("/").map(encodeURIComponent).join("/"); };
   // On GitHub Pages files come from the site itself; anywhere else (or from disk) from GitHub directly.
+  // Games can live in a separate games repo (read first) as well as in the site's own repo.
+  var GAMES = { owner: R.owner, name: "rom-games-fruti" };
+  var SOURCES = [GAMES, { owner: R.owner, name: R.name, site: true }];
+  var pathSrc = {};   // "rom/DS/Game/file.zip" -> the source it came from
+  var raw = function (s, path) { return "https://raw.githubusercontent.com/" + s.owner + "/" + s.name + "/" + BRANCH + "/" + enc(path); };
   function url(path) {
-    return R.local ? enc(path) : "https://raw.githubusercontent.com/" + R.owner + "/" + R.name + "/" + BRANCH + "/" + enc(path);
+    var s = pathSrc[path];
+    if (s && !s.site) return raw(s, path);
+    return R.local ? enc(path) : raw(R, path);
   }
   // GitHub Pages takes a few minutes to publish a new upload, but GitHub itself has it at once:
   // if the site doesn't have a file yet, get it straight from GitHub.
@@ -120,15 +127,29 @@
     }).catch(function () {});
   }
 
-  var KEY = "fruti:tree:" + R.owner + "/" + R.name;
-  function readCache() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
-  function writeCache(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
-
   function fetchTree(force) {
+    return Promise.all(SOURCES.map(function (s) {
+      return fetchTreeOf(s, force).then(function (files) { return { s: s, files: files }; }, function (e) { return { s: s, error: e }; });
+    })).then(function (all) {
+      var ok = all.filter(function (x) { return x.files; });
+      if (!ok.length) throw all[all.length - 1].error;
+      var seen = {}, out = [];
+      pathSrc = {};
+      ok.forEach(function (x) {
+        x.files.forEach(function (f) { if (seen[f.path]) return; seen[f.path] = 1; pathSrc[f.path] = x.s; out.push(f); });
+      });
+      return out;
+    });
+  }
+  function fetchTreeOf(S, force) {
+    var KEY = "fruti:tree:" + S.owner + "/" + S.name;
+    var readCache = function () { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } };
+    var writeCache = function (v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} };
     var c = readCache();
     if (!force && c && Date.now() - c.at < CACHE_MS) return Promise.resolve(c.files);
-    var api = "https://api.github.com/repos/" + R.owner + "/" + R.name + "/git/trees/" + BRANCH + "?recursive=1";
+    var api = "https://api.github.com/repos/" + S.owner + "/" + S.name + "/git/trees/" + BRANCH + "?recursive=1";
     return fetch(api).then(function (r) {
+      if (r.status === 404 || r.status === 409) return { tree: [] };   // repo missing or still empty
       if (!r.ok) throw new Error(r.status === 403 || r.status === 429 ? "GitHub's limit of 60 lookups an hour was reached. Try again later." : "GitHub answered " + r.status + ".");
       return r.json();
     }).then(function (j) {
@@ -140,16 +161,15 @@
       // GitHub's hourly limit reached (or offline): use rom/files.json, the list a GitHub Action keeps
       // up to date in the repo. An old saved list is the last resort: it can be from before an upload
       // finished, which would make complete games look like they're missing parts.
-      return fileList().catch(function () {
+      return fileList(S).catch(function () {
         if (c) return c.files;
         throw e;
       });
     });
   }
-  function fileList() {
+  function fileList(S) {
     // Straight from GitHub's file server: it has a new list sooner than the GitHub Pages site
-    var raw = "https://raw.githubusercontent.com/" + R.owner + "/" + R.name + "/" + BRANCH + "/rom/files.json";
-    return fetch(raw, { cache: "no-store" }).then(function (r) { return r.ok ? r : getFile(url("rom/files.json"), { cache: "no-store" }); }).then(function (r) {
+    return fetch(raw(S, "rom/files.json"), { cache: "no-store" }).then(function (r) { return r.ok || !S.site ? r : getFile(enc("rom/files.json"), { cache: "no-store" }); }).then(function (r) {
       if (!r.ok) throw new Error("no file list");
       return r.json();
     }).then(function (j) {
@@ -246,6 +266,7 @@
   window.FrutiLibrary = {
     CONSOLE_FOLDERS: CONSOLE_FOLDERS,
     repo: R,
+    gamesRepo: GAMES,
     url: url,
     // -> Promise of the game list
     load: function (force) {
