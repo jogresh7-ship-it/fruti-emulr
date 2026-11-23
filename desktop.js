@@ -26,6 +26,7 @@
   let games = [], state = "loading", error = "";
   const ICON = {
     play: `<svg viewBox="0 0 24 24"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/></svg>`,
+    down: `<svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 18v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1"/></svg>`,
     trash: `<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>`,
     warn: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>`,
   };
@@ -122,6 +123,12 @@
       ${times[g.id] >= 60000 ? `<span>· ${esc(fmt(times[g.id]))} played</span>` : ""}${last ? `<span>· last played ${esc(ago(last))}</span>` : ""}
       ${g.local ? `<span class="pill mine">Imported</span>` : ""}${frameBlocked(g) ? `<span class="pill" style="background:#2a3a5a;border-color:#2a3a5a;color:#cfe0ff">↗ Plays in pop-up</span>` : ""}${g.problem ? `<span class="pill" style="background:#8a2020;border-color:#8a2020">${esc(problemLabel(g.problem))}</span>` : ""}</div>`));
     el.appendChild(h("span", "row-play", blocked ? ICON.warn : ICON.play));
+    if (!g.local) {
+      const dl = h("span", "row-del row-dl", ICON.down); dl.setAttribute("role", "button");
+      dl.title = "Download this game as one file (all parts joined)";
+      dl.onclick = (e) => { e.stopPropagation(); downloadGame(g, dl); };
+      el.appendChild(dl);
+    }
     if (g.local) {
       const del = h("span", "row-del", ICON.trash); del.setAttribute("role", "button"); del.title = "Remove from this browser";
       del.onclick = (e) => {
@@ -281,6 +288,39 @@
     FrutiLibrary.load(force).then((list) => { games = list; state = "ok"; checkCovers(list); })
       .catch((e) => { state = "error"; error = e.message; })
       .then(render);
+  }
+
+  // ---------- Download a game as one file (its parts joined), e.g. to upload it again elsewhere ----------
+  let downloading = false;
+  async function downloadGame(g, btn) {
+    if (downloading) { toast("Another game is still downloading. Wait for it to finish."); return; }
+    downloading = true; btn.classList.add("busy");
+    const total = g.size || 0, blobs = []; let done = 0;
+    try {
+      for (let i = 0; i < g.urls.length; i++) {
+        const r = await fetch(g.urls[i]);
+        if (!r.ok) throw new Error(`part ${i + 1} of ${g.urls.length} couldn't be downloaded (${r.status})`);
+        const reader = r.body.getReader(), chunks = [];
+        for (;;) {
+          const x = await reader.read(); if (x.done) break;
+          chunks.push(x.value); done += x.value.length;
+          toast(`Downloading ${g.title}: ${mb(done)}${total ? " of " + mb(total) : ""}…`);
+        }
+        blobs.push(new Blob(chunks));
+      }
+      // Name it after the game, with the type it really is (parts of a .7z are often named .zip)
+      const head = new Uint8Array(await blobs[0].slice(0, 8).arrayBuffer());
+      const ext = head[0] === 0x37 && head[1] === 0x7a ? ".7z" : head[0] === 0x50 && head[1] === 0x4b ? ".zip"
+        : head[0] === 0x43 && head[1] === 0x49 && head[2] === 0x53 && head[3] === 0x4f ? ".cso"
+        : ((/\.[a-z0-9]+$/i.exec(g.fileName || "") || [".bin"])[0]);
+      const name = g.title.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim() + ext;
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(blobs)); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 120000);
+      toast(`Saved ${name} (${mb(done)}). You can upload it with Import → Upload to GitHub.`);
+    } catch (e) {
+      toast(`Download failed: ${e.message}`);
+    } finally { downloading = false; btn.classList.remove("busy"); }
   }
 
   // ---------- Import a game (saved in this browser only) ----------
