@@ -271,6 +271,8 @@
 
       function start(game, g) {     // game = { data: Uint8Array, name: "My Game.cso" }
         if (g.console === "ps2") { location.replace("ps2.html?game=" + encodeURIComponent(id)); return; }
+        var framed = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+        if (framed && (g.console === "psp")) { show(g.title, "This game doesn't work in an iframe. Open the site in its own tab to play it."); return; }
         document.title = g.title + " - Fruti";
         stage.innerHTML = "";
         window.EJS_player = "#game";

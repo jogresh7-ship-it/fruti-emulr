@@ -280,7 +280,9 @@
     FrutiLibrary.load().then(function (games) {
       var g = games.filter(function (x) { return x.id === id; })[0];
       if (!g) { show("This game is not in the library."); return; }
-      document.title = g.title + " - Fruti";
+      var framed = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+        if (framed && (true)) { show(g.title, "This game doesn't work in an iframe. Open the site in its own tab to play it."); return; }
+        document.title = g.title + " - Fruti";
       if (g.problem) { show(g.title, g.problem); return; }
       if (!threadsReady(g)) return;
       show(g.title, "Checking the game files…");
