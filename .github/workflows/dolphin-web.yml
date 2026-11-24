@@ -1,0 +1,39 @@
+# Fetches wasm-dolphin (https://github.com/dougchansan/wasm-dolphin, GPL-2.0-or-later): the Dolphin
+# GameCube / Wii emulator compiled to WebAssembly, with its ready-built core. Saves it to the separate
+# "dolphin-build" branch (never main); the site's gc/ folder is then updated from it by hand.
+# Runs when this file changes, or by hand from the Actions tab.
+name: Get GameCube / Wii emulator (wasm-dolphin)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/dolphin-web.yml"]
+permissions:
+  contents: write
+jobs:
+  get:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Get wasm-dolphin
+        run: git clone --depth 1 https://github.com/dougchansan/wasm-dolphin.git wd
+      - name: Show what it is
+        run: |
+          cd wd
+          git log -1 --format='%H %cd'
+          ls -la; du -sh cores src 2>/dev/null || true
+          find . -path ./.git -prune -o -type f -size +1M -print | xargs -r ls -la
+          for f in index.html src/app.js src/core-host.js package.json; do echo "===== $f"; head -c 6000 "$f"; echo; done
+      - name: Save to the dolphin-build branch
+        run: |
+          mkdir out
+          cd wd
+          # Everything the page needs to run (no git history, no build tools)
+          tar --exclude=.git --exclude=node_modules -cf - . | (cd ../out && tar -xf -)
+          cd ../out
+          git log -1 >/dev/null 2>&1 || true
+          (cd ../wd && git log -1 --format='wasm-dolphin %H %cd') > VERSION-fruti.txt
+          git init -q -b dolphin-build
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "wasm-dolphin (GameCube / Wii emulator for the browser)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" dolphin-build
